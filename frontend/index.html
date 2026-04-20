@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCTV Command Center | Konawe</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #0b0c10;
+            --surface-color: rgba(22, 24, 32, 0.6);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary-accent: #00f0ff;
+            --secondary-accent: #7000ff;
+            --text-main: #f8f9fa;
+            --text-muted: #8b92a5;
+            --success: #00ff88;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(112, 0, 255, 0.08), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(0, 240, 255, 0.08), transparent 25%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* --- Header --- */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 40px;
+            background: rgba(11, 12, 16, 0.7);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(90deg, var(--primary-accent), var(--text-main));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--primary-accent), var(--secondary-accent));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+            position: relative;
+        }
+        
+        .logo-icon::after {
+            content: '';
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--bg-color);
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 24px;
+        }
+
+        .stat-badge {
+            background: var(--surface-color);
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-badge span {
+            color: var(--text-muted);
+        }
+
+        /* --- Main Content & Grid --- */
+        main {
+            padding: 30px 40px;
+            flex: 1;
+        }
+
+        .grid-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 500;
+        }
+
+        .controls-wrapper {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .controls-wrapper select {
+            background: var(--surface-color);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            outline: none;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+        }
+
+        .camera-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 24px;
+        }
+
+        /* --- Camera Card (Glassmorphism) --- */
+        .camera-card {
+            background: var(--surface-color);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(12px);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .camera-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(0, 240, 255, 0.3);
+            box-shadow: 0 12px 40px rgba(0, 240, 255, 0.15);
+        }
+
+        .camera-header {
+            padding: 14px 18px;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .camera-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .camera-name {
+            font-weight: 600;
+            font-size: 1rem;
+            letter-spacing: 0.3px;
+        }
+
+        .camera-location {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-container {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-text {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--success);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--success);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.6); }
+            70% { box-shadow: 0 0 0 8px rgba(0, 255, 136, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
+        }
+
+        /* Iframe Container */
+        .video-container {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #000;
+            position: relative;
+        }
+
+        .video-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+
+        /* Overlay loader (simulated) */
+        .loader-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            z-index: 10;
+            transition: opacity 0.5s ease;
+            pointer-events: none;
+        }
+
+        .loader-spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: var(--primary-accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            header { padding: 15px 20px; flex-direction: column; gap: 15px; }
+            main { padding: 20px; }
+            .camera-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">
+            <div class="logo-icon"></div>
+            NEXUS COMMAND CENTER
+        </div>
+        <div class="header-stats">
+            <div class="stat-badge">
+                <div class="status-dot"></div>
+                SYSTEM ONLINE
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="grid-controls">
+            <h1 class="section-title">Live Monitoring Feed</h1>
+            <div class="controls-wrapper">
+                <select id="quality-selector">
+                    <option value="low" selected>Kualitas: LOW (Stream 2)</option>
+                    <option value="hd">Kualitas: HD (Stream 1)</option>
+                </select>
+                <select id="mode-selector">
+                    <option value="mse" selected>Mode: Buffered (MSE)</option>
+                    <option value="hls">Mode: Max Buffer (HLS)</option>
+                    <option value="webrtc">Mode: Real-Time (Tanpa Buffer)</option>
+                </select>
+                <select id="layout-selector">
+                    <option value="auto">Auto Grid</option>
+                    <option value="2">2x2 Grid</option>
+                    <option value="3">3x3 Grid</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="camera-grid" id="cameraGrid">
+            <!-- Camera cards will be injected here via Javascript -->
+        </div>
+    </main>
+
+    <script>
+        // Data Kamera (disesuaikan dengan isi go2rtc.yaml)
+        const cameraData = [
+            { baseId: 'labkesda1', name: 'Kamera Utama', location: 'Labkesda' },
+            { baseId: 'sosial1', name: 'Area Publik', location: 'Dinas Sosial' },
+            { baseId: 'asambu1', name: 'Gerbang Utama', location: 'Asambu' },
+            { baseId: 'unaaha1', name: 'Simpang Jalan', location: 'Kel. Unaaha' },
+            { baseId: 'pasar_asinua1', name: 'Pintu Masuk', location: 'Pasar Asinua' },
+            { baseId: 'asinua1', name: 'Area Parkir', location: 'Asinua' },
+            { baseId: 'inalahi1', name: 'Jalan Utama', location: 'Inalahi' },
+            { baseId: 'uepai1', name: 'Area Belakang', location: 'Uepai' }
+        ];
+
+        let currentQuality = 'low'; // Default stream 2 (LOW)
+        let currentMode = 'mse'; // Default buffered
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const grid = document.getElementById('cameraGrid');
+            
+            let host = window.location.hostname;
+            if (!host || host === '') host = 'localhost';
+            const go2rtcBaseUrl = `http://${host}:1984`;
+
+            function renderCameras() {
+                grid.innerHTML = ''; // bersihkan grid sebelum render ulang
+
+                cameraData.forEach((cam) => {
+                    const card = document.createElement('div');
+                    card.className = 'camera-card';
+                    
+                    // Logika: Jika LOW, pakai akhiran _sub (karena stream 2). Jika HD, tetap baseId.
+                    const streamId = currentQuality === 'low' ? `${cam.baseId}_sub` : cam.baseId;
+                    const streamUrl = `${go2rtcBaseUrl}/stream.html?src=${streamId}&mode=${currentMode}`;
+
+                    card.innerHTML = `
+                        <div class="camera-header">
+                            <div class="camera-info">
+                                <span class="camera-name">${cam.name} <span style="font-size: 0.7em; margin-left: 6px; color: var(--primary-accent)">[${currentQuality.toUpperCase()}]</span></span>
+                                <span class="camera-location">${cam.location}</span>
+                            </div>
+                            <div class="status-container">
+                                <span class="status-text">${currentMode.toUpperCase()}</span>
+                                <div class="status-dot"></div>
+                            </div>
+                        </div>
+                        <div class="video-container">
+                            <div class="loader-overlay" id="loader-${cam.baseId}">
+                                <div class="loader-spinner"></div>
+                            </div>
+                            <iframe 
+                                src="${streamUrl}" 
+                                title="${cam.name}"
+                                allowfullscreen
+                            ></iframe>
+                        </div>
+                    `;
+                    
+                    grid.appendChild(card);
+
+                    const iframe = card.querySelector('iframe');
+                    iframe.onload = () => {
+                        const loader = document.getElementById(`loader-${cam.baseId}`);
+                        if(loader) loader.style.opacity = '0';
+                    };
+                });
+            }
+
+            // Render awal saat pertama dimuat
+            renderCameras();
+
+            // Kontrol Pilihan Kualitas (Dropdown)
+            document.getElementById('quality-selector').addEventListener('change', (e) => {
+                currentQuality = e.target.value;
+                renderCameras();
+            });
+
+            // Kontrol Pilihan Mode (Dropdown)
+            document.getElementById('mode-selector').addEventListener('change', (e) => {
+                currentMode = e.target.value;
+                renderCameras();
+            });
+
+            // Kontrol Tampilan Grid
+            const layoutSelect = document.getElementById('layout-selector');
+            layoutSelect.addEventListener('change', (e) => {
+                const val = e.target.value;
+                if (val === 'auto') {
+                    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(380px, 1fr))';
+                } else if (val === '2') {
+                    grid.style.gridTemplateColumns = 'repeat(2, 1fr)';
+                } else if (val === '3') {
+                    grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
