@@ -1,0 +1,188 @@
+# 1. SETINGAN KEAMANAN (WAJIB)
+api:
+  listen: ":1984"
+  username: admin
+  password: "matamata#" # Silakan ganti sesuai keinginan
+
+rtsp:
+  listen: ":8554"
+  username: admin
+  password: "matamata#" # Samakan dengan password di atas
+
+hls:
+  segment_duration: 10
+  playlist_length: 6
+
+# 2. DAFTAR STREAMS
+streams:
+  # Labkesda
+  labkesda1_high: rtsp://admin:2025-CCTVknw@cctv-labkesda.ddns.net:6554/stream1
+  labkesda1_low: rtsp://admin:2025-CCTVknw@cctv-labkesda.ddns.net:6554/stream2
+  labkesda2_high: rtsp://admin:2025-CCTVknw@cctv-labkesda.ddns.net:6555/stream1
+  labkesda2_low: rtsp://admin:2025-CCTVknw@cctv-labkesda.ddns.net:6555/stream2
+
+  # Sosial / Dinsos
+  sosial1_high: rtsp://admin:2025-CCTVknw@cctv-dinsos.ddns.net:6559/stream1
+  sosial1_low: rtsp://admin:2025-CCTVknw@cctv-dinsos.ddns.net:6559/stream2
+  sosial2_high: rtsp://admin:2025-CCTVknw@cctv-dinsos.ddns.net:6560/stream1
+  sosial2_low: rtsp://admin:2025-CCTVknw@cctv-dinsos.ddns.net:6560/stream2
+
+  # Asambu
+  asambu1_high: rtsp://admin:2025-CCTVknw@cctv-asambu.ddns.net:6559/stream1
+  asambu1_low: rtsp://admin:2025-CCTVknw@cctv-asambu.ddns.net:6559/stream2
+  asambu2_high: rtsp://admin:2025-CCTVknw@cctv-asambu.ddns.net:6560/stream1
+  asambu2_low: rtsp://admin:2025-CCTVknw@cctv-asambu.ddns.net:6560/stream2
+
+  # Unaaha
+  unaaha1_high: rtsp://admin:2025-CCTVknw@cctv-kelunaaha.ddns.net:6559/stream1
+  unaaha1_low: rtsp://admin:2025-CCTVknw@cctv-kelunaaha.ddns.net:6559/stream2
+  unaaha2_high: rtsp://admin:2025-CCTVknw@cctv-kelunaaha.ddns.net:6560/stream1
+  unaaha2_low: rtsp://admin:2025-CCTVknw@cctv-kelunaaha.ddns.net:6560/stream2
+
+  # Pasar Asinua
+  pasar_asinua1_high: rtsp://admin:2025-CCTVknw@cctv-pasarasinua.ddns.net:6552/stream1
+  pasar_asinua1_low: rtsp://admin:2025-CCTVknw@cctv-pasarasinua.ddns.net:6552/stream2
+  pasar_asinua2_high: rtsp://admin:2025-CCTVknw@cctv-pasarasinua.ddns.net:6551/stream1
+  pasar_asinua2_low: rtsp://admin:2025-CCTVknw@cctv-pasarasinua.ddns.net:6551/stream2
+
+  # Asinua (Umum)
+  asinua1_high: rtsp://admin:2025-CCTVknw@cctv-asinua.ddns.net:6555/stream1
+  asinua1_low: rtsp://admin:2025-CCTVknw@cctv-asinua.ddns.net:6555/stream2
+  asinua2_high: rtsp://admin:2025-CCTVknw@cctv-asinua.ddns.net:6551/stream1
+  asinua2_low: rtsp://admin:2025-CCTVknw@cctv-asinua.ddns.net:6551/stream2
+
+  # Inalahi
+  inalahi1_high: rtsp://admin:2025-CCTVknw@cctv-inalahi.ddns.net:6550/stream1
+  inalahi1_low: rtsp://admin:2025-CCTVknw@cctv-inalahi.ddns.net:6550/stream2
+  inalahi2_high: rtsp://admin:2025-CCTVknw@cctv-inalahi.ddns.net:6551/stream1
+  inalahi2_low: rtsp://admin:2025-CCTVknw@cctv-inalahi.ddns.net:6551/stream2
+
+  # Uepai
+  uepai1_high: rtsp://admin:2025-CCTVknw@cctv-uepai2.ddns.net:6550/stream1
+  uepai1_low: rtsp://admin:2025-CCTVknw@cctv-uepai2.ddns.net:6550/stream2
+  uepai2_high: rtsp://admin:2025-CCTVknw@cctv-uepai2.ddns.net:6551/stream1
+  uepai2_low: rtsp://admin:2025-CCTVknw@cctv-uepai2.ddns.net:6551/stream2
+
+  # Unilaki
+  unilaki1_high: rtsp://admin:2025-CCTVknw@cctv-unilaki.ddns.net:6655/stream1
+  unilaki1_low: rtsp://admin:2025-CCTVknw@cctv-unilaki.ddns.net:6655/stream2
+  unilaki2_high: rtsp://admin:2025-CCTVknw@cctv-unilaki.ddns.net:6656/stream1
+  unilaki2_low: rtsp://admin:2025-CCTVknw@cctv-unilaki.ddns.net:6656/stream2
+
+  # Damakar
+  damakar1_high: rtsp://admin:2025-CCTVknw@cctv-damkar.ddns.net:6550/stream1
+  damakar1_low: rtsp://admin:2025-CCTVknw@cctv-damkar.ddns.net:6550/stream2
+  damakar2_high: rtsp://admin:2025-CCTVknw@cctv-damkar.ddns.net:6551/stream1
+  damakar2_low: rtsp://admin:2025-CCTVknw@cctv-damkar.ddns.net:6551/stream2
+
+  # 3. BUFFERED STREAMS (Semi-Live with Cache & Delay) - Low Quality
+  labkesda1_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=labkesda1_low
+  labkesda2_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=labkesda2_low
+  sosial1_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=sosial1_low
+  sosial2_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=sosial2_low
+  asambu1_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=asambu1_low
+  asambu2_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=asambu2_low
+  unaaha1_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=unaaha1_low
+  unaaha2_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=unaaha2_low
+  pasar_asinua1_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=pasar_asinua1_low
+  pasar_asinua2_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=pasar_asinua2_low
+  asinua1_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=asinua1_low
+  asinua2_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=asinua2_low
+  inalahi1_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=inalahi1_low
+  inalahi2_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=inalahi2_low
+  uepai1_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=uepai1_low
+  uepai2_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=uepai2_low
+  unilaki1_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=unilaki1_low
+  unilaki2_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=unilaki2_low
+  damakar1_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=damakar1_low
+  damakar2_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=damakar2_low
+
+  # 4. BUFFERED STREAMS (Semi-Live with Cache & Delay) - HD Quality
+  labkesda1_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=labkesda1_high
+  labkesda2_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=labkesda2_high
+  sosial1_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=sosial1_high
+  sosial2_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=sosial2_high
+  asambu1_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=asambu1_high
+  asambu2_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=asambu2_high
+  unaaha1_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=unaaha1_high
+  unaaha2_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=unaaha2_high
+  pasar_asinua1_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=pasar_asinua1_high
+  pasar_asinua2_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=pasar_asinua2_high
+  asinua1_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=asinua1_high
+  asinua2_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=asinua2_high
+  inalahi1_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=inalahi1_high
+  inalahi2_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=inalahi2_high
+  uepai1_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=uepai1_high
+  uepai2_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=uepai2_high
+  unilaki1_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=unilaki1_high
+  unilaki2_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=unilaki2_high
+  damakar1_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=damakar1_high
+  damakar2_high_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=damakar2_high
+
+  # 5. NVR DELAY STREAMS (RTSP for NVR) - Low Quality
+  labkesda1_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=labkesda1_low
+  labkesda2_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=labkesda2_low
+  sosial1_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=sosial1_low
+  sosial2_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=sosial2_low
+  asambu1_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=asambu1_low
+  asambu2_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=asambu2_low
+  unaaha1_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=unaaha1_low
+  unaaha2_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=unaaha2_low
+  pasar_asinua1_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=pasar_asinua1_low
+  pasar_asinua2_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=pasar_asinua2_low
+  asinua1_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=asinua1_low
+  asinua2_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=asinua2_low
+  inalahi1_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=inalahi1_low
+  inalahi2_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=inalahi2_low
+  uepai1_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=uepai1_low
+  uepai2_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=uepai2_low
+  unilaki1_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=unilaki1_low
+  unilaki2_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=unilaki2_low
+  damakar1_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=damakar1_low
+  damakar2_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=damakar2_low
+
+  # 6. NVR DELAY STREAMS (RTSP for NVR) - HD Quality
+  labkesda1_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=labkesda1_high
+  labkesda2_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=labkesda2_high
+  sosial1_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=sosial1_high
+  sosial2_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=sosial2_high
+  asambu1_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=asambu1_high
+  asambu2_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=asambu2_high
+  unaaha1_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=unaaha1_high
+  unaaha2_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=unaaha2_high
+  pasar_asinua1_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=pasar_asinua1_high
+  pasar_asinua2_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=pasar_asinua2_high
+  asinua1_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=asinua1_high
+  asinua2_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=asinua2_high
+  inalahi1_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=inalahi1_high
+  inalahi2_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=inalahi2_high
+  uepai1_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=uepai1_high
+  uepai2_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=uepai2_high
+  unilaki1_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=unilaki1_high
+  unilaki2_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=unilaki2_high
+  damakar1_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=damakar1_high
+  damakar2_high_nvr_delay: http://127.0.0.1:1984/api/stream.m3u8?src=damakar2_high
+
+  # 7. NVR COMPATIBLE STREAMS (Transcode ke H.264 untuk kompatibilitas NVR)
+  # Gunakan stream ini jika NVR error "This channel is not supported"
+  # Resource Path di NVR: asambu2_nvr_h264 (contoh)
+  labkesda1_nvr_h264: ffmpeg:labkesda1_low#video=h264#width=1280#height=720
+  labkesda2_nvr_h264: ffmpeg:labkesda2_low#video=h264#width=1280#height=720
+  sosial1_nvr_h264: ffmpeg:sosial1_low#video=h264#width=1280#height=720
+  sosial2_nvr_h264: ffmpeg:sosial2_low#video=h264#width=1280#height=720
+  asambu1_nvr_h264: ffmpeg:asambu1_low#video=h264#width=1280#height=720
+  asambu2_nvr_h264: ffmpeg:asambu2_low#video=h264#width=1280#height=720
+  unaaha1_nvr_h264: ffmpeg:unaaha1_low#video=h264#width=1280#height=720
+  unaaha2_nvr_h264: ffmpeg:unaaha2_low#video=h264#width=1280#height=720
+  pasar_asinua1_nvr_h264: ffmpeg:pasar_asinua1_low#video=h264#width=1280#height=720
+  pasar_asinua2_nvr_h264: ffmpeg:pasar_asinua2_low#video=h264#width=1280#height=720
+  asinua1_nvr_h264: ffmpeg:asinua1_low#video=h264#width=1280#height=720
+  asinua2_nvr_h264: ffmpeg:asinua2_low#video=h264#width=1280#height=720
+  inalahi1_nvr_h264: ffmpeg:inalahi1_low#video=h264#width=1280#height=720
+  inalahi2_nvr_h264: ffmpeg:inalahi2_low#video=h264#width=1280#height=720
+  uepai1_nvr_h264: ffmpeg:uepai1_low#video=h264#width=1280#height=720
+  uepai2_nvr_h264: ffmpeg:uepai2_low#video=h264#width=1280#height=720
+  unilaki1_nvr_h264: ffmpeg:unilaki1_low#video=h264#width=1280#height=720
+  unilaki2_nvr_h264: ffmpeg:unilaki2_low#video=h264#width=1280#height=720
+  damakar1_nvr_h264: ffmpeg:damakar1_low#video=h264#width=1280#height=720
+  damakar2_nvr_h264: ffmpeg:damakar2_low#video=h264#width=1280#height=720

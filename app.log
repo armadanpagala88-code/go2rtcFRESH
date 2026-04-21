@@ -1,0 +1,6 @@
+11:01:51.768 INF go2rtc platform=darwin/arm64 revision= version=1.9.14+dev.
+11:01:51.768 INF config path=/Volumes/Untitled/code/CCTVNEW/go2rtcFRESH/go2rtc.yaml
+11:01:51.770 INF [api] listen addr=:1984
+11:01:51.770 INF [rtsp] listen addr=:8554
+11:01:51.771 INF [webrtc] listen tcp addr=[::]:8555
+11:01:51.771 INF [webrtc] listen udp addr=172.20.10.4:8555

@@ -1,157 +1,2599 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="dark" data-kt-theme="true" data-kt-theme-mode="dark" dir="ltr" lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>go2rtc</title>
-    <style>
-        .controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
+    <title>CCTV Dashboard - Konawe</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+    <script>
+        // AUTH INIT (Must be first for loader)
+        var authHeader = localStorage.getItem('cctv_auth_v2') || '';
+        function resetAuth() {
+            if (confirm('Ganti password / Keluar sistem?')) {
+                localStorage.removeItem('cctv_auth_v2');
+                window.location.reload();
+            }
         }
 
-        .info {
-            color: #888;
-        }
-    </style>
-</head>
-<body>
-
-<script src="main.js"></script>
-
-<main>
-    <div class="controls">
-        <button>stream</button>
-        modes
-        <label><input type="checkbox" name="webrtc" checked>webrtc</label>
-        <label><input type="checkbox" name="mse" checked>mse</label>
-        <label><input type="checkbox" name="hls" checked>hls</label>
-        <label><input type="checkbox" name="mjpeg" checked>mjpeg</label>
-    </div>
-    <table>
-        <thead>
-        <tr>
-            <th><label><input id="selectall" type="checkbox">name</label></th>
-            <th>online</th>
-            <th>commands</th>
-        </tr>
-        </thead>
-        <tbody id="streams">
-        </tbody>
-    </table>
-    <div class="info"></div>
-</main>
-
-<script>
-    const templates = [
-        '<a href="stream.html?src={name}">stream</a>',
-        '<a href="links.html?src={name}">links</a>',
-        '<a href="#" data-name="{name}">delete</a>',
-    ];
-
-    document.querySelector('.controls > button')
-        .addEventListener('click', () => {
-            const url = new URL('stream.html', location.href);
-
-            const streams = document.querySelectorAll('#streams input');
-            streams.forEach(i => {
-                if (i.checked) url.searchParams.append('src', i.name);
-            });
-
-            if (!url.searchParams.has('src')) return;
-
-            let mode = document.querySelectorAll('.controls input');
-            mode = Array.from(mode).filter(i => i.checked).map(i => i.name).join(',');
-
-            window.location.href = `${url}&mode=${mode}`;
-        });
-
-    const tbody = document.getElementById('streams');
-    tbody.addEventListener('click', async ev => {
-        if (ev.target.innerText !== 'delete') return;
-
-        ev.preventDefault();
-
-        const src = decodeURIComponent(ev.target.dataset.name);
-
-        const message = `Please type the name of the stream "${src}" to confirm its deletion from the configuration. This action is irreversible.`;
-        if (prompt(message) !== src) {
-            alert('Stream name does not match. Deletion cancelled.');
-            return;
-        }
-
-        const url = new URL('api/streams', location.href);
-        url.searchParams.set('src', src);
-
-        try {
-            await fetch(url, {method: 'DELETE'});
-            reload();
-        } catch (error) {
-            console.error('Failed to delete the stream:', error);
-        }
-    });
-
-    document.getElementById('selectall').addEventListener('change', ev => {
-        document.querySelectorAll('#streams input').forEach(el => {
-            el.checked = ev.target.checked;
-        });
-    });
-
-    function reload() {
-        const url = new URL('api/streams', location.href);
-        const checkboxStates = {};
-        tbody.querySelectorAll('input[type="checkbox"][name]').forEach(checkbox => {
-            checkboxStates[checkbox.name] = checkbox.checked;
-        });
-        fetch(url, {cache: 'no-cache'}).then(r => r.json()).then(data => {
-            const existingIds = Array.from(tbody.querySelectorAll('tr')).map(tr => tr.dataset['id']);
-            const fetchedIds = [];
-
-            for (const [key, value] of Object.entries(data)) {
-                const name = key.replace(/[<">]/g, ''); // sanitize
-                fetchedIds.push(name);
-
-                let tr = tbody.querySelector(`tr[data-id="${name}"]`);
-                const online = value && value.consumers ? value.consumers.length : 0;
-                const src = encodeURIComponent(name);
-                const links = templates.map(link => link.replace('{name}', src)).join(' ');
-
-                if (!tr) {
-                    tr = document.createElement('tr');
-                    tr.dataset['id'] = name;
-                    tbody.appendChild(tr);
+        function forceLoad(url, type) {
+            var headers = {};
+            if (authHeader) headers['Authorization'] = authHeader;
+            
+            return fetch(url, { headers: headers }).then(function(r) {
+                if (r.status === 401) {
+                    console.error('Auth failed for: ' + url);
+                    // Show login overlay if critical fetch fails
+                    var overlay = document.getElementById('login-overlay');
+                    if (overlay) overlay.style.display = 'flex';
                 }
+                if (!r.ok) throw new Error('Failed to load: ' + url);
+                return r.text();
+            }).then(function(txt) {
+                var el;
+                if (type === 'css') {
+                    el = document.createElement('style');
+                } else {
+                    el = document.createElement('script');
+                }
+                el.textContent = txt;
+                document.head.appendChild(el);
+            });
+        }
+    </script>
 
-                const isChecked = checkboxStates[name] ? 'checked' : '';
-                tr.innerHTML =
-                    `<td><label><input type="checkbox" name="${name}" ${isChecked}>${name}</label></td>` +
-                    `<td><a href="api/streams?src=${src}">${online} / info</a> / <a href="api/streams?src=${src}&video=all&audio=all&microphone">probe</a> / <a href="net.html?src=${src}">net</a></td>` +
-                    `<td>${links}</td>`;
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            height: 100%;
+            overflow: hidden
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: var(--bg-body, #0a0a0a);
+            color: var(--text-main, #fff);
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* Light Mode */
+        body.light-mode {
+            --bg-body: #f0f2f5;
+            --text-main: #1a1a2e;
+            --bg-header: linear-gradient(135deg, #e8edf2 0%, #dce3eb 100%);
+            --bg-card: #ffffff;
+            --bg-input: #f5f5f5;
+            --border-main: #d0d5dd;
+            --text-muted: #555;
+        }
+        body.light-mode .header { background: var(--bg-header); border-color: var(--border-main); }
+        body.light-mode .header h1, body.light-mode .header .time { color: #1a1a2e; }
+        body.light-mode .header .date { color: #555; }
+        body.light-mode .ticker { background: #e8edf2; border-color: #d0d5dd; }
+        body.light-mode .ticker-content { color: #555; }
+        body.light-mode .ticker-content .hl { color: #0369a1; }
+        body.light-mode .cam-box { background: #fff; border-color: #d0d5dd; }
+        body.light-mode .cam-hdr { background: linear-gradient(rgba(255,255,255,0.85), transparent); }
+        body.light-mode .cam-name { color: #1a1a2e; }
+        body.light-mode .footer { background: #e8edf2; border-color: #d0d5dd; color: #555; }
+        body.light-mode .sidebar { background: #fff; border-color: #d0d5dd; }
+        body.light-mode .sb-hdr { border-color: #d0d5dd; }
+        body.light-mode .sb-hdr h3 { color: #1a1a2e; }
+        body.light-mode .sb-title { color: #0369a1; }
+        body.light-mode .sb-item { border-left-color: #0ea5e9; }
+        body.light-mode .map-legend { background: #e8edf2; border-color: #d0d5dd; color: #555; }
+        body.light-mode .btn { background: #fff; color: #1a1a2e; border-color: #d0d5dd; }
+        body.light-mode .btn.active { background: #0ea5e9; color: #fff; border-color: #0ea5e9; }
+        body.light-mode .tab-btn { background: #fff; color: #555; border-color: #d0d5dd; }
+        body.light-mode .tab-btn.active { background: #0ea5e9; color: #fff; }
+        body.light-mode .pagination { background: #e8edf2; border-color: #d0d5dd; }
+        body.light-mode .page-btn { background: #fff; color: #1a1a2e; border-color: #d0d5dd; }
+        body.light-mode .leaflet-popup-content-wrapper { background: #fff; color: #1a1a2e; border-color: #0ea5e9; }
+        body.light-mode .leaflet-popup-tip { background: #fff; }
+        body.light-mode .popup-grp { color: #555; }
+        body.light-mode .weather-card { background: rgba(255,255,255,0.9); color: #1a1a2e; border-color: #d0d5dd; }
+        body.light-mode .btn-ai-toggle { background: #fff; color: #555; border-color: #d0d5dd !important; }
+        body.light-mode .sb-section { border-color: #eee; }
+
+        .app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 8px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+            flex-shrink: 0
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px
+        }
+
+        .header h1 {
+            font-size: 15px;
+            color: #0ea5e9
+        }
+
+        .datetime {
+            display: flex;
+            gap: 8px;
+            align-items: center
+        }
+
+        .date {
+            font-size: 11px;
+            color: #888
+        }
+
+        .time {
+            font-size: 14px;
+            color: #22c55e;
+            font-family: monospace;
+            font-weight: bold
+        }
+
+        .live-badge {
+            background: #22c55e;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            animation: pulse 2s infinite
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1
             }
 
-            // Remove old rows
-            existingIds.forEach(id => {
-                if (!fetchedIds.includes(id)) {
-                    const trToRemove = tbody.querySelector(`tr[data-id="${id}"]`);
-                    tbody.removeChild(trToRemove);
+            50% {
+                opacity: 0.5
+            }
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            padding: 5px 12px;
+            border: 1px solid #444;
+            background: #1a1a2e;
+            color: #fff;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 11px
+        }
+
+        .btn:hover {
+            background: #2a2a4e
+        }
+
+        .btn.active {
+            background: #0ea5e9;
+            border-color: #0ea5e9
+        }
+
+        .ticker {
+            background: #0a0a0a;
+            border-bottom: 1px solid #222;
+            overflow: hidden;
+            flex-shrink: 0
+        }
+
+        .ticker-content {
+            display: inline-block;
+            padding: 5px 0;
+            animation: ticker 25s linear infinite;
+            font-size: 11px;
+            color: #888;
+            white-space: nowrap
+        }
+
+        @keyframes ticker {
+            0% {
+                transform: translateX(100vw)
+            }
+
+            100% {
+                transform: translateX(-100%)
+            }
+        }
+
+        .ticker-content .hl {
+            color: #0ea5e9
+        }
+
+        .main {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+            min-height: 0
+        }
+
+        @media (min-width: 768px) {
+            .main { flex-direction: row; }
+        }
+
+        .grid-wrap {
+            flex: 1;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden
+        }
+
+        .grid {
+            display: grid;
+            gap: 5px;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden
+        }
+
+        /* Mobile First Grid */
+        .grid-1x1, .grid-2x2, .grid-3x3, .grid-4x4 {
+            grid-template-columns: 1fr;
+            grid-auto-rows: minmax(220px, 1fr);
+            overflow-y: auto;
+        }
+
+        /* Desktop Grid */
+        @media (min-width: 768px) {
+            .grid-1x1 { grid-template-columns: 1fr; grid-template-rows: 1fr; overflow: hidden; }
+            .grid-2x2 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); overflow: hidden; }
+            .grid-3x3 { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); overflow: hidden; }
+            .grid-4x4 { grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 1fr); overflow: hidden; }
+        }
+
+
+        .cam-box {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+            cursor: grab;
+            min-height: 0
+        }
+
+        .cam-box.dragging {
+            opacity: 0.5;
+            cursor: grabbing
+        }
+
+        .cam-box.dragover {
+            border: 2px solid #0ea5e9
+        }
+
+        .cam-box video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            pointer-events: none
+        }
+
+        .cam-hdr {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(rgba(0, 0, 0, 0.7), transparent);
+            padding: 6px 8px;
+            display: flex;
+            justify-content: space-between;
+            z-index: 10
+        }
+
+        .cam-name {
+            font-size: 10px;
+            font-weight: 600
+        }
+
+        .cam-grp {
+            font-size: 9px;
+            color: #888
+        }
+
+        .badge {
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 8px;
+            background: #22c55e
+        }
+
+        .badge.loading {
+            background: #eab308
+        }
+
+        .badge.error {
+            background: #ef4444
+        }
+
+        .cam-ctrl {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+            padding: 15px 6px 6px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 4px;
+            opacity: 0;
+            transition: 0.2s;
+            z-index: 10
+        }
+
+        .cam-box:hover .cam-ctrl {
+            opacity: 1
+        }
+
+        .cbtn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px
+        }
+
+        .cbtn:hover {
+            background: #0ea5e9
+        }
+
+        .close-fs {
+            display: none;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.7);
+            border: none;
+            color: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            z-index: 1000
+        }
+
+        .close-fs:hover {
+            background: #ef4444
+        }
+
+        .cam-box.fs .close-fs {
+            display: block
+        }
+
+        .cam-box.fs {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 999;
+            border-radius: 0;
+            cursor: default
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            background: #111;
+            border-top: 1px solid #222;
+            flex-shrink: 0
+        }
+
+        .page-btn {
+            padding: 6px 14px;
+            border: 1px solid #444;
+            background: #1a1a2e;
+            color: #fff;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px
+        }
+
+        .page-btn:hover {
+            background: #0ea5e9
+        }
+
+        .page-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed
+        }
+
+        .page-info {
+            font-size: 12px;
+            color: #888
+        }
+
+        .sidebar {
+            width: 100%;
+            height: 40vh;
+            background: #111;
+            border-top: 1px solid #333;
+            display: none;
+            flex-direction: column;
+            flex-shrink: 0
+        }
+
+        @media (min-width: 768px) {
+            .sidebar {
+                width: 220px;
+                height: auto;
+                border-left: 1px solid #333;
+                border-top: none;
+            }
+        }
+
+        .sidebar.open {
+            display: flex
+        }
+
+        .sb-hdr {
+            padding: 10px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center
+        }
+
+        .sb-hdr h3 {
+            font-size: 12px;
+            color: #888
+        }
+
+        .sb-section {
+            padding: 8px;
+            border-bottom: 1px solid #222
+        }
+
+        /* MOBILE RESPONSIVE FIXES */
+        @media (max-width: 768px) {
+            .header-left .datetime, 
+            .header-left .live-badge,
+            .header-right .btn:not([onclick="toggleSidebar()"]):not([onclick="logout()"]),
+            .header-right span[style*="color:#444"] {
+                display: none !important;
+            }
+            
+            #bupati-name { font-size: 14px; }
+            .header-right { gap: 4px; }
+            .tab-btn { padding: 4px 8px; font-size: 11px; }
+            
+            /* Sidebar on mobile */
+            .sidebar {
+                position: fixed;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                width: 85% !important;
+                z-index: 2000;
+                box-shadow: -10px 0 30px rgba(0,0,0,0.8);
+            }
+            
+            /* Burger Menu Icon Styling */
+            .btn-menu {
+                display: flex !important;
+                align-items: center;
+                gap: 6px;
+                background: #0ea5e9 !important;
+                color: #fff !important;
+                font-weight: bold;
+                border: none !important;
+            }
+
+            .grid-1x1, .grid-2x2, .grid-3x3, .grid-4x4 {
+                grid-template-columns: 1fr;
+                grid-auto-rows: minmax(180px, auto);
+            }
+
+            .lg-only { display: none !important; }
+        }
+
+        .sb-title {
+            font-size: 10px;
+            color: #666;
+            margin-bottom: 6px
+        }
+
+        .sb-list {
+            max-height: 200px;
+            overflow-y: auto
+        }
+
+        .sb-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 11px;
+            border-left: 2px solid #22c55e;
+            padding-left: 8px;
+            margin-bottom: 2px
+        }
+
+        .sb-bw {
+            color: #0ea5e9;
+            font-family: monospace;
+            font-size: 10px
+        }
+
+        .sb-cam {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 0;
+            font-size: 11px
+        }
+
+        .sb-cam input {
+            accent-color: #22c55e
+        }
+
+        .footer {
+            background: #111;
+            border-top: 1px solid #333;
+            padding: 5px 15px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #666;
+            flex-shrink: 0
+        }
+
+        /* --- Tab System --- */
+        .tab-bar {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            border-right: 1px solid #444;
+            padding-right: 8px;
+            margin-right: 4px
+        }
+
+        .tab-btn {
+            padding: 4px 14px;
+            border: 1px solid #444;
+            background: #1a1a2e;
+            color: #aaa;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 11px;
+            transition: all 0.2s
+        }
+
+        .tab-btn.active {
+            background: #0ea5e9;
+            border-color: #0ea5e9;
+            color: #fff
+        }
+
+        .tab-btn:hover:not(.active) {
+            background: #2a2a4e;
+            color: #fff
+        }
+
+        /* --- WebGIS Panel --- */
+        .webgis-wrap {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0
+        }
+
+        .webgis-wrap.active {
+            display: flex !important;
+        }
+
+        .cctv-wrap.hidden {
+            display: none !important;
+        }
+
+        .hidden { display: none !important; }
+
+        #map {
+            flex: 1;
+            min-height: 0
+        }
+
+        .map-legend {
+            background: rgba(17, 17, 20, 0.9);
+            backdrop-filter: blur(8px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            font-size: 12px;
+            color: #d1d5db;
+            flex-shrink: 0;
+            z-index: 1000;
+        }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+        .boundary-toggle { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            cursor: pointer; 
+            color: #e5e7eb; 
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .boundary-toggle:hover { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.1); }
+        .boundary-toggle input { 
+            cursor: pointer; 
+            margin: 0; 
+            width: 15px; 
+            height: 15px;
+            accent-color: #00f0ff;
+        }
+        
+        .geojson-label {
+            background: rgba(0,0,0,0.7) !important;
+            border: 1px solid rgba(255,255,255,0.2) !important;
+            border-radius: 4px !important;
+            padding: 2px 6px !important;
+            color: #fff !important;
+            font-weight: 600;
+            font-size: 10px;
+            pointer-events: none;
+        }
+
+        /* Cluster Styling */
+        .cctv-cluster-wrap {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #2d2d3a;
+            border-radius: 12px;
+            color: #fff;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.6);
+            border: 2px solid rgba(255,255,255,0.15);
+        }
+        .cctv-cluster-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #22c55e;
+            color: white;
+            border-radius: 12px;
+            padding: 3px 8px;
+            font-size: 12px;
+            font-weight: 800;
+            border: 3px solid #0d0d1a;
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.6);
+        }
+        .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large { background: none !important; }
+        .marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div { background: none !important; }
+        
+        .cctv-icon-wrap {
+            position: relative;
+            width: 34px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #2d2d3a;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            transition: all 0.2s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        }
+        .cctv-icon-wrap:hover { transform: scale(1.15) translateY(-2px); border-color: #22c55e; z-index: 1000 !important; }
+        .cctv-status-dot {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2.5px solid #2d2d3a;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            z-index: 2;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 4px
+        }
+
+        /* AI & Weather Styles */
+        .weather-card {
+            position: absolute; top: 20px; right: 20px; z-index: 1000;
+            background: rgba(13, 13, 26, 0.85); padding: 10px 15px;
+            border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px); display: flex; align-items: center; gap: 12px;
+            color: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        }
+        .weather-temp { font-size: 20px; font-weight: 800; color: #eab308; }
+        .ai-badge-wrap {
+            position: absolute; bottom: 12px; left: 12px; z-index: 11;
+            display: none; flex-direction: row; gap: 8px; pointer-events: none;
+        }
+        .ai-active .ai-badge-wrap { display: flex; }
+        .ai-chip {
+            background: rgba(15, 23, 42, 0.65); color: #f8fafc; padding: 5px 12px;
+            border-radius: 20px; font-size: 11px; font-weight: 500;
+            display: flex; align-items: center; gap: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            letter-spacing: 0.3px;
+        }
+        .ai-chip span { color: #38bdf8; font-weight: 700; font-size: 12px; margin-left: 2px; }
+        .btn-ai-toggle { background: #1e293b; color: #cbd5e1; border: 1px solid #334155 !important; border-radius: 6px; font-weight: 500; transition: all 0.3s ease; }
+        .btn-ai-toggle.active { background: linear-gradient(135deg, #0ea5e9, #2563eb); color: #fff; border-color: transparent !important; box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4); }
+
+        /* Trash Monitoring Styles */
+        .trash-badge {
+            position: absolute; bottom: 8px; right: 8px; z-index: 12;
+            display: none; padding: 4px 10px; border-radius: 6px;
+            font-size: 10px; font-weight: 800; pointer-events: none;
+            backdrop-filter: blur(4px); box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        }
+        .trash-active .trash-badge { display: flex; align-items: center; gap: 4px; }
+        .trash-kosong { background: rgba(34,197,94,0.85); color: #fff; }
+        .trash-penuh  { background: rgba(234,179,8,0.9);  color: #000; }
+        .trash-berserakan { background: rgba(239,68,68,0.9); color: #fff; }
+        .cam-box.trash-alert { animation: trashBlink 1s ease-in-out infinite; }
+        @keyframes trashBlink {
+            0%, 100% { border-color: rgba(239,68,68,0.3); }
+            50%      { border-color: rgba(239,68,68,1); box-shadow: inset 0 0 20px rgba(239,68,68,0.15); }
+        }
+        .sb-trash-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 6px 0; border-bottom: 1px solid #222;
+        }
+        .sb-trash-status {
+            font-size: 10px; font-weight: 800; padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        /* Trash Bounding Box */
+        .trash-box {
+            position: absolute; z-index: 11; pointer-events: none;
+            display: none; border: 2px solid #22c55e; border-radius: 3px;
+        }
+        .trash-active .trash-box { display: block; }
+        .trash-box-label {
+            position: absolute; top: -16px; left: -2px;
+            font-size: 8px; font-weight: 800; padding: 1px 6px;
+            border-radius: 3px 3px 0 0; white-space: nowrap; color: #fff;
+        }
+        .trash-box.tb-bersih { border-color: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.3); }
+        .trash-box.tb-bersih .trash-box-label { background: rgba(34,197,94,0.85); }
+        .trash-box.tb-sampah { border-color: #eab308; box-shadow: 0 0 10px rgba(234,179,8,0.4); }
+        .trash-box.tb-sampah .trash-box-label { background: rgba(234,179,8,0.9); color: #000; }
+        .trash-box.tb-berserakan { border-color: #ef4444; box-shadow: 0 0 14px rgba(239,68,68,0.5); animation: tbBlink 0.8s ease-in-out infinite; }
+        .trash-box.tb-berserakan .trash-box-label { background: rgba(239,68,68,0.9); }
+        @keyframes tbBlink {
+            0%, 100% { border-color: rgba(239,68,68,0.4); box-shadow: 0 0 6px rgba(239,68,68,0.2); }
+            50%      { border-color: #ef4444; box-shadow: 0 0 18px rgba(239,68,68,0.6); }
+        }
+
+        /* Make CCTV grid-wrap play nice with tab system */
+        .cctv-wrap {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            min-height: 0
+        }
+
+        .cctv-wrap.hidden {
+            display: none
+        }
+
+        /* Leaflet dark popup override */
+        .leaflet-popup-content-wrapper {
+            background: #1a1a2e;
+            color: #fff;
+            border: 1px solid #0ea5e9;
+            border-radius: 6px
+        }
+
+        .leaflet-popup-tip {
+            background: #1a1a2e
+        }
+
+        .leaflet-popup-content {
+            margin: 10px 14px;
+            font-size: 12px;
+            line-height: 1.6
+        }
+
+        .popup-name {
+            font-weight: bold;
+            color: #0ea5e9;
+            font-size: 13px
+        }
+
+        .popup-grp {
+            color: #888;
+            font-size: 11px
+        }
+
+        .popup-status {
+            display: inline-block;
+            padding: 1px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            margin-top: 4px
+        }
+
+        .popup-status.live {
+            background: #22c55e
+        }
+
+        .popup-status.offline {
+            background: #ef4444
+        }
+
+        /* --- Layer Toggle --- */
+        .layer-toggle {
+            display: flex;
+            gap: 4px;
+            align-items: center
+        }
+
+        .layer-btn {
+            padding: 3px 10px;
+            border: 1px solid #444;
+            background: #1a1a2e;
+            color: #aaa;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 10px;
+            transition: all 0.2s
+        }
+
+        .layer-btn.active {
+            background: #0ea5e9;
+            border-color: #0ea5e9;
+            color: #fff
+        }
+
+        /* --- CRUD Panel --- */
+        .crud-panel {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            background: #0f0f1a;
+            border-left: none;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5)
+        }
+
+        @media (min-width: 600px) {
+            .crud-panel { width: 360px; border-left: 1px solid #0ea5e9; }
+        }
+
+        .crud-panel.open {
+            transform: translateX(0)
+        }
+
+        .crud-hdr {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            padding: 10px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+            flex-shrink: 0
+        }
+
+        .crud-hdr h3 {
+            font-size: 13px;
+            color: #0ea5e9;
+            display: flex;
+            align-items: center;
+            gap: 6px
+        }
+
+        .crud-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px
+        }
+
+        .crud-body::-webkit-scrollbar {
+            width: 4px
+        }
+
+        .crud-body::-webkit-scrollbar-track {
+            background: #111
+        }
+
+        .crud-body::-webkit-scrollbar-thumb {
+            background: #333
+        }
+
+        .crud-row {
+            background: #1a1a2e;
+            border: 1px solid #2a2a4e;
+            border-radius: 6px;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            transition: border-color 0.2s
+        }
+
+        .crud-row:hover {
+            border-color: #0ea5e9
+        }
+
+        .crud-row-hdr {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px
+        }
+
+        .crud-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: #e2e8f0
+        }
+
+        .crud-grp {
+            font-size: 10px;
+            color: #666
+        }
+
+        .crud-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px
+        }
+
+        .crud-input-wrap label {
+            font-size: 9px;
+            color: #666;
+            display: block;
+            margin-bottom: 2px
+        }
+
+        .crud-input-wrap input {
+            width: 100%;
+            background: #0a0a14;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 4px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: monospace
+        }
+
+        .crud-input-wrap input:focus {
+            outline: none;
+            border-color: #0ea5e9
+        }
+
+        .crud-actions {
+            display: flex;
+            gap: 5px;
+            margin-top: 6px;
+            justify-content: flex-end
+        }
+
+        .cbtn-sm {
+            padding: 3px 10px;
+            border: none;
+            border-radius: 4px;
+            font-size: 10px;
+            cursor: pointer
+        }
+
+        .cbtn-save {
+            background: #22c55e;
+            color: #fff
+        }
+
+        .cbtn-save:hover {
+            background: #16a34a
+        }
+
+        .cbtn-goto {
+            background: #0ea5e9;
+            color: #fff
+        }
+
+        .cbtn-goto:hover {
+            background: #0284c7
+        }
+
+        .cbtn-reset {
+            background: #555;
+            color: #fff
+        }
+
+        .cbtn-reset:hover {
+            background: #374151
+        }
+
+        .crud-footer {
+            padding: 10px;
+            border-top: 1px solid #222;
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0
+        }
+
+        .crud-footer button {
+            flex: 1;
+            padding: 7px;
+            border: none;
+            border-radius: 5px;
+            font-size: 11px;
+            cursor: pointer
+        }
+
+        .btn-save-all {
+            background: #0ea5e9;
+            color: #fff
+        }
+
+        .btn-save-all:hover {
+            background: #0284c7
+        }
+
+        .btn-reset-all {
+            background: #ef4444;
+            color: #fff
+        }
+
+        .btn-reset-all:hover {
+            background: #dc2626
+        }
+
+        /* --- Popup Video --- */
+        .popup-video {
+            width: 640px;
+            height: 360px;
+            background: #000;
+            border-radius: 6px;
+            margin-top: 8px;
+            display: block
+        }
+
+        .popup-lokasi {
+            font-size: 10px;
+            color: #0ea5e9;
+            margin-top: 2px
+        }
+
+        .popup-vid-label {
+            font-size: 9px;
+            color: #555;
+            margin-top: 2px
+        }
+
+        .webgis-wrap {
+            position: relative
+        }
+
+        /* --- Pick Mode --- */
+        .pick-banner {
+            display: none;
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1001;
+            background: linear-gradient(135deg, #eab308, #f59e0b);
+            color: #000;
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            box-shadow: 0 4px 20px rgba(234, 179, 8, 0.4);
+            animation: pickPulse 1.5s ease infinite;
+            cursor: pointer
+        }
+
+        .pick-banner.active {
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        @keyframes pickPulse {
+
+            0%,
+            100% {
+                box-shadow: 0 4px 20px rgba(234, 179, 8, 0.4)
+            }
+
+            50% {
+                box-shadow: 0 4px 30px rgba(234, 179, 8, 0.7)
+            }
+        }
+
+        .pick-banner .pick-cancel {
+            background: rgba(0, 0, 0, 0.3);
+            border: none;
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px
+        }
+
+        #map.pick-mode {
+            cursor: crosshair !important
+        }
+
+        #map.pick-mode * {
+            cursor: crosshair !important
+        }
+
+        .crud-row.picking {
+            border-color: #eab308 !important;
+            box-shadow: 0 0 10px rgba(234, 179, 8, 0.3)
+        }
+
+        .cbtn-pick {
+            background: #eab308;
+            color: #000
+        }
+
+        .cbtn-pick:hover {
+            background: #ca8a04
+        }
+
+        .cbtn-pick.active {
+            background: #ef4444;
+            color: #fff;
+            animation: pickPulse 1.5s ease infinite
+        }
+
+        /* Login Modal */
+        #login-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+            z-index: 9999; display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+        .login-card {
+            background: #1a1a1a; padding: 30px; border-radius: 12px;
+            width: 320px; border: 1px solid #333; text-align: center;
+        }
+        .login-card h2 { margin-bottom: 20px; font-size: 18px; color: #22c55e; }
+        .login-input {
+            width: 100%; padding: 12px; background: #0a0a0a; border: 1px solid #333;
+            border-radius: 6px; color: #fff; margin-bottom: 15px; outline: none;
+        }
+        .login-btn {
+            width: 100%; padding: 12px; background: #22c55e; border: none;
+            border-radius: 6px; color: #000; font-weight: 700; cursor: pointer;
+        }
+        .login-btn:hover { background: #16a34a; }
+    </style>
+</head>
+
+<body class="antialiased flex h-full text-base text-foreground bg-background kt-sidebar-fixed kt-header-fixed">
+    <div class="app flex grow w-full flex-col">
+        <!-- Login Overlay -->
+        <div id="login-overlay" style="display: none;">
+            <div class="login-card">
+                <h2>🔐 CCTV KAB. KONAWE</h2>
+                <p style="font-size:12px; color:#888; margin-bottom:20px">Masukkan password admin untuk akses</p>
+                <input type="password" id="admin-pw" class="login-input" placeholder="Password API">
+                <button class="login-btn" onclick="checkAuth()">Masuk</button>
+            </div>
+        </div>
+        <header class="kt-header flex items-center justify-between border-b border-border bg-background px-4 py-2 shrink-0 w-full" id="header">
+            <div class="header-left flex items-center gap-2">
+                <h1 id="bupati-name" class="font-bold text-primary text-sm md:text-lg">PINTAR Cctv</h1>
+                <div class="datetime flex gap-2 items-center text-xs">
+                    <span class="date text-muted-foreground" id="date">--</span>
+                    <span class="time font-mono text-success font-bold" id="time">--:--:--</span>
+                </div>
+                <div class="live-badge bg-success text-success-inverse px-2 rounded-md text-2xs animate-pulse">LIVE</div>
+            </div>
+            <div class="header-right flex items-center gap-2">
+                <div class="header-right">
+                    <button class="btn" style="border-color:#eab308; color:#eab308" onclick="resetAuth()">🔑 Ganti Password</button>
+                    <div class="btn-group">
+                        <button class="btn" id="tab-webgis" onclick="switchTab('webgis')">🗺️ Peta Lokasi</button>
+                        <button class="btn" id="tab-cctv" onclick="switchTab('cctv')">🎥 CCTV</button>
+                    </div>
+                </div>
+                <select id="mode-selector" class="btn" onchange="setStreamMode(this.value)" style="background:var(--surface-color);color:#fff;border:1px solid var(--border-color);border-radius:6px;outline:none;padding:8px;font-size:12px;">
+                    <option value="mse" selected>Buffered (MSE)</option>
+                    <option value="hls">Max Buff (HLS)</option>
+                    <option value="webrtc">Real-Time (WebRTC)</option>
+                </select>
+                <button class="btn" onclick="logout()" title="Logout" style="background:rgba(239, 68, 68, 0.1); color:#ef4444; border-color: rgba(239,68,68,0.2)">🔓</button>
+                <button class="btn active" id="btn-sd" onclick="setQuality('sd')">SD</button>
+                <button class="btn" id="btn-hd" onclick="setQuality('hd')">HD</button>
+                <span style="color:#444">|</span>
+                <button class="btn btn-ai-toggle" id="btn-ai" onclick="toggleAI()">✨ Smart Vision</button>
+                <span style="color:#444">|</span>
+                <button class="btn" id="btn-patrol" onclick="togglePatrol()">▶ Patroli</button>
+                <button class="btn" id="btn-theme" onclick="toggleTheme()">🌙</button>
+                <span style="color:#444">|</span>
+                <button class="btn" onclick="setLayout('1x1')">1x1</button>
+                <button class="btn active" onclick="setLayout('2x2')">2x2</button>
+                <button class="btn" onclick="setLayout('3x3')">3x3</button>
+                <button class="btn" onclick="setLayout('4x4')">4x4</button>
+                <button class="btn btn-menu" onclick="toggleSidebar()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    <span class="lg-only">Menu</span>
+                </button>
+                <button class="btn lg-only" onclick="toggleFS()">Fullscreen</button>
+            </div>
+        </header>
+        <div class="ticker">
+            <div class="ticker-content"><span class="hl">CCTV Dinas Komunikasi dan Informatika Kab. Konawe</span> -
+                Sistem Pemantauan Real-Time - Labkesda - Dinsos - Asambu - Kel. Unaaha - Pasar Asinua - Asinua - Inalahi
+                - Uepai - Damkar - <span class="hl">Total 20 Kamera</span></div>
+        </div>
+        <div class="main">
+            <!-- CCTV Tab -->
+            <div class="cctv-wrap hidden" id="cctv-wrap">
+                <div class="grid-wrap">
+                    <div id="grid" class="grid grid-2x2"></div>
+                    <div class="pagination" id="pagination">
+                        <button class="page-btn" id="prevBtn" onclick="prevPage()">◀ Prev</button>
+                        <span class="page-info" id="pageInfo">1 / 1</span>
+                        <button class="page-btn" id="nextBtn" onclick="nextPage()">Next ▶</button>
+                    </div>
+                </div>
+                <div class="kt-sidebar bg-background border-e border-e-border z-20 flex flex-col items-stretch shrink-0 w-[300px] lg:w-[350px]" id="sidebar">
+                    <div class="sb-hdr flex items-center justify-between p-4 border-b border-border">
+                        <div class="flex items-center gap-2">
+                            <div class="datetime flex flex-col items-end md:hidden">
+                                <span class="time font-mono text-success font-bold text-xs" id="sb-time">--:--</span>
+                                <span class="date text-muted-foreground text-[10px]" id="sb-date">--</span>
+                            </div>
+                            <button class="cbtn bg-primary hover:bg-primary-hover text-white rounded-lg flex items-center justify-center p-2 size-8 transition-all" onclick="toggleSidebar()" style="position:relative;z-index:50;cursor:pointer">
+                               <span class="text-lg font-bold">✕</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="px-4 py-2 border-b border-white/[0.05]">
+                        <input type="text" id="cam-search" placeholder="Cari nama/lokasi..." 
+                               class="w-full bg-[#15151a] border border-white/[0.08] px-3 py-2 rounded-md text-xs text-gray-200 outline-none focus:border-primary/50 transition-all"
+                               oninput="handleSearch(this.value)">
+                    </div>
+                    <div class="sb-section">
+                        <div class="sb-title">BANDWIDTH</div>
+                        <div class="sb-list" id="bw-list"></div>
+                    </div>
+                    <div class="sb-section">
+                        <div class="sb-title">🗑️ MONITORING SAMPAH <label style="font-weight:normal;font-size:10px;margin-left:8px;cursor:pointer"><input type="checkbox" id="chk-trash" onchange="toggleTrash()"> Aktifkan</label></div>
+                        <div class="sb-list" id="trash-list"><div style="color:#555; font-size:11px; padding:6px 0">Centang untuk mengaktifkan monitoring</div></div>
+                    </div>
+                    <div class="sb-section">
+                        <div class="sb-title">KAMERA</div>
+                        <div class="sb-list" id="cam-list"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- WebGIS Tab -->
+            <div class="webgis-wrap active" id="webgis-wrap">
+                <div class="pick-banner" id="pick-banner">
+                    📍 Klik pada peta untuk memilih lokasi — <span id="pick-cam-name"></span>
+                    <button class="pick-cancel" onclick="cancelPickMode()">✕ Batal</button>
+                </div>
+                <div id="map"></div>
+                <div class="weather-card" id="weather-card" style="display:none">
+                    <div id="weather-icon" style="font-size:24px">☀️</div>
+                    <div>
+                        <div class="weather-temp" id="weather-temp">--°C</div>
+                        <div id="weather-desc" style="font-size:10px; color:#aaa; font-weight:600">Loading...</div>
+                    </div>
+                </div>
+                <div class="map-legend">
+                    <div class="flex items-center gap-4 border-r border-white/10 pr-4 mr-2">
+                        <span class="flex items-center"><span class="legend-dot" style="background:#22c55e; box-shadow: 0 0 8px #22c55e66;"></span>Online</span>
+                        <span class="flex items-center"><span class="legend-dot" style="background:#ef4444; box-shadow: 0 0 8px #ef444466;"></span>Offline</span>
+                        <span class="flex items-center"><span class="legend-dot" style="background:#f59e0b; box-shadow: 0 0 8px #f59e0b66;"></span>Loading</span>
+                    </div>
+                    
+                    <label class="boundary-toggle">
+                        <input type="checkbox" id="chk-kec" onchange="toggleBoundary('kec')">
+                        <span class="font-medium text-gray-200">Batas Kec.</span>
+                    </label>
+                    <label class="boundary-toggle">
+                        <input type="checkbox" id="chk-kel" onchange="toggleBoundary('kel')">
+                        <span class="font-medium text-gray-200">Batas Kel.</span>
+                    </label>
+                    <span style="border-left:1px solid rgba(255,255,255,0.1); height:16px; margin: 0 6px;"></span>
+                    <span style="margin-left:0px" class="layer-toggle">
+                        <button class="layer-btn active" id="btn-sat" onclick="setBaseLayer('satellite')">🛰️ Satelit</button>
+                        <button class="layer-btn" id="btn-dark" onclick="setBaseLayer('dark')">🌑 Dark</button>
+                    </span>
+                    <button class="layer-btn"
+                        style="margin-left:8px;background:#1a1a2e;color:#eab308;border-color:#eab308"
+                        onclick="toggleCrudPanel()">⚙️ Kelola Lokasi</button>
+                    <span style="margin-left:auto;color:#555;font-size:10px">© OpenStreetMap / Esri</span>
+                </div>
+                <!-- CRUD Panel -->
+                <div class="crud-panel" id="crud-panel">
+                    <div class="crud-hdr">
+                        <h3>📍 Kelola Lokasi CCTV</h3>
+                        <button class="cbtn" onclick="toggleCrudPanel()">✕</button>
+                    </div>
+                    <div class="crud-body" id="crud-body"></div>
+                    <div class="crud-footer">
+                        <button class="btn-save-all" onclick="saveAllCoords()">💾 Simpan Semua</button>
+                        <button class="btn-reset-all" onclick="resetAllCoords()">↺ Reset Default</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            <div>Online: <span id="cnt">0</span>/20</div>
+            <div>Diskominfo Kab. Konawe 2026</div>
+        </div>
+    </div>
+    <script>
+        var API = (window.location.protocol === 'file:') ? 'http://localhost:1984' : window.location.origin;
+
+        function checkAuth() {
+            var pw = document.getElementById('admin-pw').value;
+            if (pw) {
+                authHeader = 'Basic ' + btoa('admin:' + pw);
+                localStorage.setItem('cctv_auth_v2', authHeader);
+                document.getElementById('login-overlay').style.display = 'none';
+                render(); // Reload with auth
+            }
+        }
+
+        // Show login if not authenticated
+        window.addEventListener('DOMContentLoaded', function() {
+            if (!authHeader) {
+                document.getElementById('login-overlay').style.display = 'flex';
+            }
+        });
+        // If running via go2rtc proxy or local dev on port 1984
+        if (window.location.port === '1984') { API = window.location.origin; }
+        else if (window.location.hostname === 'localhost') { API = 'http://localhost:1984'; }
+
+        /* ===== TAB SWITCHING ===== */
+        var activeTab = localStorage.getItem('activeTab') || 'webgis';
+        var mapInstance = null;
+        var mapInitialized = false;
+
+        function switchTab(tab) {
+            cancelPickMode(); // Cleanup pick mode if active
+            activeTab = tab;
+            localStorage.setItem('activeTab', tab);
+            document.getElementById('cctv-wrap').classList.toggle('hidden', tab !== 'cctv');
+            document.getElementById('webgis-wrap').classList.toggle('active', tab === 'webgis');
+            document.getElementById('tab-cctv').classList.toggle('active', tab === 'cctv');
+            document.getElementById('tab-webgis').classList.toggle('active', tab === 'webgis');
+            
+            if (tab === 'webgis') {
+                if (!mapInitialized) initMap();
+                else mapInstance.invalidateSize();
+                // Stop all players in background to save resources
+                stopAllPlayers();
+            } else if (tab === 'cctv') {
+                render(); 
+            }
+        }
+
+        function logout() {
+            if (confirm('Keluar dari sistem?')) {
+                localStorage.removeItem('cctv_auth_v2');
+                location.reload();
+            }
+        }
+
+        var searchQuery = '';
+        function handleSearch(val) {
+            searchQuery = val.toLowerCase();
+            currentPage = 0;
+            render();
+        }
+
+        function stopAllPlayers() {
+            for (var k in players) {
+                if (players[k]) {
+                    if (players[k].close) players[k].close();
+                    delete players[k];
+                }
+            }
+            camCache = {}; // Reset cache to force re-init when coming back
+        }
+
+        /* ===== WEBGIS MAP ===== */
+
+        // Default camera locations
+        var defaultCamLocations = [
+            { id: 'labkesda1', name: 'Labkesda 1', grp: 'Labkesda', lat: -3.8567447, lng: 122.0374888, lokasi: 'Kel. Inolobunggadue, Kec. Unaaha' },
+            { id: 'labkesda2', name: 'Labkesda 2', grp: 'Labkesda', lat: -3.8568447, lng: 122.0375888, lokasi: 'Kel. Inolobunggadue, Kec. Unaaha' },
+            { id: 'sosial1', name: 'Sosial 1', grp: 'Dinsos', lat: -3.853525, lng: 122.038409, lokasi: 'Kel. Inolobunggadue, Kec. Unaaha' },
+            { id: 'sosial2', name: 'Sosial 2', grp: 'Dinsos', lat: -3.853625, lng: 122.038509, lokasi: 'Kel. Inolobunggadue, Kec. Unaaha' },
+            { id: 'asambu1', name: 'Asambu 1', grp: 'Asambu', lat: -3.850053, lng: 122.049460, lokasi: 'Kel. Asambu, Kec. Unaaha (BTN Satria)' },
+            { id: 'asambu2', name: 'Asambu 2', grp: 'Asambu', lat: -3.850153, lng: 122.049560, lokasi: 'Kel. Asambu, Kec. Unaaha (BTN Satria)' },
+            { id: 'unaaha1', name: 'Kel. Unaaha 1', grp: 'Kel. Unaaha', lat: -3.851204, lng: 122.061950, lokasi: 'Kel. Unaaha, Kec. Unaaha (LAP UNAAHA)' },
+            { id: 'unaaha2', name: 'Kel. Unaaha 2', grp: 'Kel. Unaaha', lat: -3.851304, lng: 122.062050, lokasi: 'Kel. Unaaha, Kec. Unaaha (LAP UNAAHA)' },
+            { id: 'pasar_asinua1', name: 'Pasar Asinua 1', grp: 'Pasar Asinua', lat: -3.853282, lng: 122.072084, lokasi: 'Kel. Asinua, Kec. Unaaha' },
+            { id: 'pasar_asinua2', name: 'Pasar Asinua 2', grp: 'Pasar Asinua', lat: -3.853382, lng: 122.072184, lokasi: 'Kel. Asinua, Kec. Unaaha' },
+            { id: 'asinua1', name: 'Asinua 1', grp: 'Asinua', lat: -3.855549, lng: 122.069216, lokasi: 'Kel. Asinua, Kec. Unaaha' },
+            { id: 'asinua2', name: 'Asinua 2', grp: 'Asinua', lat: -3.855649, lng: 122.069316, lokasi: 'Kel. Asinua, Kec. Unaaha' },
+            { id: 'inalahi1', name: 'Inalahi 1', grp: 'Inalahi', lat: -3.870196, lng: 122.109323, lokasi: 'Kel. Inalahi, Kec. Wawotobi' },
+            { id: 'inalahi2', name: 'Inalahi 2', grp: 'Inalahi', lat: -3.870296, lng: 122.109423, lokasi: 'Kel. Inalahi, Kec. Wawotobi' },
+            { id: 'uepai1', name: 'Uepai 1', grp: 'Uepai', lat: -3.877814, lng: 122.039731, lokasi: 'Kel. Uepai, Kec. Unaaha (Bendungan Lama)' },
+            { id: 'uepai2', name: 'Uepai 2', grp: 'Uepai', lat: -3.877914, lng: 122.039831, lokasi: 'Kel. Uepai, Kec. Unaaha (Bendungan Lama)' },
+            { id: 'unilaki1', name: 'Unilaki 1', grp: 'Unilaki', lat: -3.872935, lng: 122.094469, lokasi: 'Kel. Lalosabila, Kec. Wawotobi' },
+            { id: 'unilaki2', name: 'Unilaki 2', grp: 'Unilaki', lat: -3.873035, lng: 122.094569, lokasi: 'Kel. Lalosabila, Kec. Wawotobi' },
+            { id: 'damkar1', name: 'Damkar 1', grp: 'Damkar', lat: -3.858378, lng: 122.057764, lokasi: 'Kel. Ambeikairi, Kec. Unaaha' },
+            { id: 'damkar2', name: 'Damkar 2', grp: 'Damkar', lat: -3.858478, lng: 122.057864, lokasi: 'Kel. Ambeikairi, Kec. Unaaha' }
+        ];
+
+        // Load saved or use defaults
+        function loadCamLocations() {
+            try {
+                // Cleanup old keys
+                localStorage.removeItem('cctv_locations');
+                localStorage.removeItem('cctv_locations_v2');
+                var saved = localStorage.getItem('cctv_locations_v3');
+                if (saved) return JSON.parse(saved);
+            } catch (e) { }
+            return JSON.parse(JSON.stringify(defaultCamLocations));
+        }
+
+        var camLocations = loadCamLocations();
+
+        /* --- Base Layer Toggle --- */
+        var baseLayers = {};
+        var currentBaseLayer = 'satellite';
+
+        function setBaseLayer(name) {
+            if (!mapInitialized) return;
+            if (baseLayers[currentBaseLayer]) mapInstance.removeLayer(baseLayers[currentBaseLayer]);
+            currentBaseLayer = name;
+            baseLayers[name].addTo(mapInstance);
+            document.getElementById('btn-dark').className = 'layer-btn' + (name === 'dark' ? ' active' : '');
+            document.getElementById('btn-sat').className = 'layer-btn' + (name === 'satellite' ? ' active' : '');
+        }
+
+        /* --- Marker --- */
+        function makeMarker(color) {
+            return L.divIcon({
+                className: '',
+                html: '<div class="cctv-icon-wrap">' +
+                      '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>' +
+                      '<div class="cctv-status-dot" style="background:' + color + '; box-shadow: 0 0 10px ' + color + '"></div>' +
+                      '</div>',
+                iconSize: [34, 34],
+                iconAnchor: [17, 17],
+                popupAnchor: [0, -17]
+            });
+        }
+
+        /* --- Popup HLS Video --- */
+        var popupHlsPlayers = {};
+
+        function openPopupStream(id) {
+            if (popupHlsPlayers[id]) { popupHlsPlayers[id].close(); delete popupHlsPlayers[id]; }
+            if (currentMode !== 'webrtc') return; // iframe handles connectivity itself
+            
+            var v = document.getElementById('popup-v-' + id);
+            if (!v) return;
+            var pc = new RTCPeerConnection({ iceServers: [] });
+            pc.addTransceiver('video', { direction: 'recvonly' });
+            pc.ontrack = function(e) { 
+                v.srcObject = e.streams[0]; 
+                v.play().catch(function(err){}); 
+                try {
+                    var receiver = pc.getReceivers().find(function(r) { return r.track && r.track.kind === 'video'; });
+                    if (receiver && typeof receiver.jitterBufferTarget !== 'undefined') {
+                        receiver.jitterBufferTarget = 5000;
+                    }
+                } catch(err) {}
+            };
+            pc.createOffer().then(function(offer) {
+                pc.setLocalDescription(offer);
+                fetch(API + '/api/webrtc?src=' + id + '_sub', { 
+                    method: 'POST', 
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': authHeader
+                    },
+                    body: JSON.stringify({ type: offer.type, sdp: offer.sdp }) 
+                })
+                .then(function(r) {
+                    var ct = r.headers.get("content-type");
+                    if (ct && ct.includes("application/json")) return r.json().then(function(j) { return j.sdp; });
+                    return r.text();
+                })
+                .then(function(sdpText) {
+                    if (sdpText && sdpText.indexOf('v=0') === 0) {
+                        pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: sdpText }));
+                    } else {
+                        console.error('Popup WebRTC error:', sdpText);
+                    }
+                });
+            });
+            popupHlsPlayers[id] = pc;
+        }
+
+        function destroyPopupStream(id) {
+            if (popupHlsPlayers[id]) { popupHlsPlayers[id].close(); delete popupHlsPlayers[id]; }
+        }
+
+        function buildPopupHtml(loc, statusClass, statusLabel) {
+            var lokasiText = loc.lokasi || loc.addr || 'Konawe';
+            var currentBw = '0';
+            for(var i=0; i<cams.length; i++) { if(cams[i].id === loc.id) { currentBw = cams[i].bw || '0'; break; } }
+
+            return '<div class="popup-name">📷 ' + loc.name + '</div>' +
+                '<div class="popup-grp">' + loc.grp + '</div>' +
+                '<div class="popup-lokasi">📍 ' + lokasiText + '</div>' +
+                '<div style="font-size:10px;color:#666;margin-bottom:4px">📌 ' + parseFloat(loc.lat).toFixed(5) + ', ' + parseFloat(loc.lng).toFixed(5) + '</div>' +
+                '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">' +
+                    '<span class="popup-status ' + statusClass + '">' + statusLabel + '</span>' +
+                    '<span id="bw-pv-' + loc.id + '" style="font-size:11px; font-weight:bold; color:'+(statusClass==='live'?'#0ea5e9':'#ef4444')+'">' + currentBw + ' KB/s</span>' +
+                '</div>' +
+                '<div id="ai-pv-' + loc.id + '" class="ai-badge-wrap" style="display:flex; margin-bottom:8px; position:static; flex-direction:row">' +
+                    '<div class="ai-chip">👤 <span class="ai-cnt-p">0</span></div>' +
+                    '<div class="ai-chip">🏍️ <span class="ai-cnt-m">0</span></div>' +
+                    '<div class="ai-chip">🚗 <span class="ai-cnt-c">0</span></div>' +
+                '</div>' +
+                '<div id="trash-pv-' + loc.id + '" style="display:flex; align-items:center; gap:6px; margin-bottom:8px; padding:5px 10px; border-radius:6px; background:rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.3)"><span style="font-size:16px">🗑️</span><span style="font-size:11px; font-weight:700; color:#22c55e" class="trash-pv-label">Bersih</span></div>' +
+                (currentMode === 'webrtc' 
+                    ? '<video id="popup-v-' + loc.id + '" class="popup-video" style="width:100%;height:350px;background:#000" muted autoplay playsinline controls></video>' 
+                    : '<iframe id="popup-v-' + loc.id + '" class="popup-video" style="border:none;width:100%;height:350px;background:#000" src="' + API + '/stream.html?src=' + getStreamId(loc.id) + '&mode=' + currentMode + '" allowfullscreen></iframe>') +
+                '<div class="popup-vid-label">Stream langsung • ' + quality.toUpperCase() + ' quality</div>';
+        }
+
+        var mapMarkers = {};
+
+        function initMap() {
+            mapInitialized = true;
+
+            baseLayers['satellite'] = L.tileLayer(
+                'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '&copy; Esri, Maxar, Earthstar Geographics',
+                maxZoom: 18 // Limited to 18 to prevent "Map data not available"
+            });
+            baseLayers['dark'] = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap &copy; CARTO',
+                subdomains: 'abcd', maxZoom: 20
+            });
+
+            mapInstance = L.map('map', {
+                center: [-3.855, 122.065],
+                zoom: 13,
+                zoomControl: true,
+                maxZoom: 18, // Global map limit for stability
+                layers: [baseLayers['satellite']]
+            });
+
+            // Keep clean labels on top of Satellite
+            var hybridLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 20, opacity: 1
+            });
+            window.activeLabels = hybridLabels.addTo(mapInstance);
+            
+            window.updateLabels = function(layerName) {
+                if (window.activeLabels) mapInstance.removeLayer(window.activeLabels);
+                if (layerName === 'satellite') window.activeLabels = hybridLabels.addTo(mapInstance);
+            };
+
+            function getFeatureColor(name) {
+                var hash = 0;
+                for (var i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+                var c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+                return "#" + "00000".substring(0, 6 - c.length) + c;
+            }
+
+            // GeoJSON Boundary Layers
+            window.boundaryLayers = { kec: null, kel: null };
+            
+            function loadBoundaries() {
+                try {
+                    // Using global variables from loaded scripts to bypass CORS
+                    if (typeof kecamatanData !== 'undefined') {
+                        window.boundaryLayers.kec = L.geoJSON(kecamatanData, {
+                            style: function(f) {
+                                var name = f.properties.nm_kecamatan || f.properties.NAMOBJ || 'kec';
+                                return { color: getFeatureColor(name), weight: 3, fillOpacity: 0.1 };
+                            },
+                            onEachFeature: function(f, l) {
+                                var name = f.properties.nm_kecamatan || f.properties.NAMOBJ;
+                                l.bindTooltip(name, { permanent: true, direction: 'center', className: 'geojson-label' });
+                            }
+                        });
+                    }
+
+                    if (typeof kelurahanData !== 'undefined') {
+                        window.boundaryLayers.kel = L.geoJSON(kelurahanData, {
+                            style: function(f) {
+                                var name = f.properties.nm_kelurahan || f.properties.NAMOBJ || 'kel';
+                                return { color: getFeatureColor(name), weight: 1.5, fillOpacity: 0.05, dashArray: '3, 6' };
+                            },
+                            onEachFeature: function(f, l) {
+                                var name = f.properties.nm_kelurahan || f.properties.NAMOBJ;
+                                l.bindTooltip(name, { permanent: true, direction: 'center', className: 'geojson-label' });
+                            }
+                        });
+                    }
+                } catch(e) { console.error("GeoJSON Load Error:", e); }
+            }
+            loadBoundaries();
+
+            // Marker Clustering
+            window.clusterGroup = L.markerClusterGroup({
+                spiderfyOnMaxZoom: true,
+                showCoverageOnHover: false,
+                zoomToBoundsOnClick: true,
+                maxClusterRadius: 40,
+                iconCreateFunction: function(cluster) {
+                    var count = cluster.getChildCount();
+                    return L.divIcon({
+                        html: '<div class="cctv-cluster-wrap">' +
+                              '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>' +
+                              '<div class="cctv-cluster-badge">' + count + '</div>' +
+                              '</div>',
+                        className: 'cluster-cctv-icon',
+                        iconSize: [40, 40]
+                    });
+                }
+            }).addTo(mapInstance);
+
+            // Place markers
+            for (var i = 0; i < camLocations.length; i++) {
+                (function (loc) {
+                    var marker = L.marker([loc.lat, loc.lng], { icon: makeMarker('#f59e0b') });
+                    var popup = L.popup({ maxWidth: 700, minWidth: 660, className: 'cctv-popup' })
+                        .setContent(buildPopupHtml(loc, '', 'Loading'));
+                    marker.bindPopup(popup);
+                    marker.on('popupopen', function () {
+                        setTimeout(function () { openPopupStream(loc.id); }, 100);
+                    });
+                    marker.on('popupclose', function () {
+                        destroyPopupStream(loc.id);
+                    });
+                    
+                    window.clusterGroup.addLayer(marker);
+                    mapMarkers[loc.id] = { marker: marker, loc: loc };
+                })(camLocations[i]);
+            }
+
+            setInterval(updateMapMarkers, 5000);
+        }
+
+        function updateMapMarkers() {
+            if (!mapInitialized) return;
+            for (var id in mapMarkers) {
+                var m = mapMarkers[id];
+                var status = camStatus[id] || 'offline';
+                var color, statusLabel, statusClass;
+
+                if (status === 'live') { 
+                    color = '#22c55e'; statusLabel = 'LIVE'; statusClass = 'live'; 
+                } else if (status === 'loading') { 
+                    color = '#f59e0b'; statusLabel = 'Loading'; statusClass = ''; 
+                } else { 
+                    color = '#ef4444'; statusLabel = 'Offline'; statusClass = 'offline'; 
+                }
+                
+                m.marker.setIcon(makeMarker(color));
+                if (!m.marker.isPopupOpen()) {
+                    m.marker.getPopup().setContent(buildPopupHtml(m.loc, statusClass, statusLabel));
+                }
+            }
+        }
+
+        /* ===== CRUD LOKASI ===== */
+        function toggleCrudPanel() {
+            var p = document.getElementById('crud-panel');
+            if (!p.classList.contains('open')) { buildCrudPanel(); }
+            p.classList.toggle('open');
+        }
+
+        function buildCrudPanel() {
+            var html = '';
+            for (var i = 0; i < camLocations.length; i++) {
+                var loc = camLocations[i];
+                html += '<div class="crud-row" id="crud-' + loc.id + '">' +
+                    '<div class="crud-row-hdr">' +
+                    '<div><div class="crud-name">📷 ' + loc.name + '</div>' +
+                    '<div class="crud-grp">' + loc.grp + '</div></div>' +
+                    '</div>' +
+                    '<div class="crud-input-wrap" style="margin-bottom:4px"><label>Lokasi / Alamat</label>' +
+                    '<input type="text" id="lok-' + loc.id + '" value="' + (loc.lokasi || '') + '" placeholder="Nama jalan / kelurahan" style="width:100%"></div>' +
+                    '<div class="crud-inputs">' +
+                    '<div class="crud-input-wrap"><label>Latitude</label>' +
+                    '<input type="number" step="0.00001" id="lat-' + loc.id + '" value="' + loc.lat + '"></div>' +
+                    '<div class="crud-input-wrap"><label>Longitude</label>' +
+                    '<input type="number" step="0.00001" id="lng-' + loc.id + '" value="' + loc.lng + '"></div>' +
+                    '</div>' +
+                    '<div class="crud-actions">' +
+                    '<button class="cbtn-sm cbtn-pick" id="pick-btn-' + loc.id + '" onclick="startPickMode(\'' + loc.id + '\')" title="Pilih titik di peta">📍 Pilih di Peta</button>' +
+                    '<button class="cbtn-sm cbtn-goto" onclick="gotoMarker(\'' + loc.id + '\')" title="Fly to marker">🎯 Goto</button>' +
+                    '<button class="cbtn-sm cbtn-save" onclick="saveOneCoord(\'' + loc.id + '\')" title="Simpan koordinat">💾 Simpan</button>' +
+                    '</div>' +
+                    '</div>';
+            }
+            document.getElementById('crud-body').innerHTML = html;
+        }
+
+        function saveOneCoord(id) {
+            var latEl = document.getElementById('lat-' + id);
+            var lngEl = document.getElementById('lng-' + id);
+            var lokEl = document.getElementById('lok-' + id);
+            if (!latEl || !lngEl) return;
+            var lat = parseFloat(latEl.value);
+            var lng = parseFloat(lngEl.value);
+            var lokasi = lokEl ? lokEl.value.trim() : '';
+            if (isNaN(lat) || isNaN(lng)) { alert('Koordinat tidak valid!'); return; }
+            for (var i = 0; i < camLocations.length; i++) {
+                if (camLocations[i].id === id) {
+                    camLocations[i].lat = lat;
+                    camLocations[i].lng = lng;
+                    camLocations[i].lokasi = lokasi;
+                    break;
+                }
+            }
+            if (mapMarkers[id]) {
+                mapMarkers[id].marker.setLatLng([lat, lng]);
+                mapMarkers[id].loc.lat = lat;
+                mapMarkers[id].loc.lng = lng;
+                mapMarkers[id].loc.lokasi = lokasi;
+                // Update popup content
+                var popup = mapMarkers[id].marker.getPopup();
+                if (popup) popup.setContent(buildPopupHtml(mapMarkers[id].loc, '', 'Loading'));
+            }
+            localStorage.setItem('cctv_locations', JSON.stringify(camLocations));
+            var row = document.getElementById('crud-' + id);
+            if (row) { row.style.borderColor = '#22c55e'; setTimeout(function () { row.style.borderColor = ''; }, 1500); }
+        }
+
+        function saveAllCoords() {
+            for (var i = 0; i < camLocations.length; i++) {
+                saveOneCoord(camLocations[i].id);
+            }
+            alert('✅ Semua koordinat berhasil disimpan!');
+        }
+
+        function resetAllCoords() {
+            if (!confirm('Reset semua koordinat ke posisi default?')) return;
+            camLocations = JSON.parse(JSON.stringify(defaultCamLocations));
+            localStorage.removeItem('cctv_locations_v3');
+            // Move all markers back
+            for (var i = 0; i < camLocations.length; i++) {
+                var loc = camLocations[i];
+                if (mapMarkers[loc.id]) {
+                    mapMarkers[loc.id].marker.setLatLng([loc.lat, loc.lng]);
+                    mapMarkers[loc.id].loc.lat = loc.lat;
+                    mapMarkers[loc.id].loc.lng = loc.lng;
+                }
+            }
+            buildCrudPanel();
+        }
+
+        function gotoMarker(id) {
+            var m = mapMarkers[id];
+            if (m && mapInstance) {
+                mapInstance.flyTo([m.loc.lat, m.loc.lng], 17, { duration: 1.2 });
+                setTimeout(function () { m.marker.openPopup(); }, 1400);
+            }
+        }
+
+        /* ===== PICK MODE (point select on map) ===== */
+        var pickModeActive = false;
+        var pickTargetId = null;
+        var pickTempMarker = null;
+
+        function startPickMode(id) {
+            // If already picking this one, cancel
+            if (pickModeActive && pickTargetId === id) { cancelPickMode(); return; }
+            // Cancel any previous
+            if (pickModeActive) cancelPickMode();
+
+            pickModeActive = true;
+            pickTargetId = id;
+
+            // Find cam name
+            var camName = id;
+            for (var i = 0; i < camLocations.length; i++) {
+                if (camLocations[i].id === id) { camName = camLocations[i].name; break; }
+            }
+
+            // UI updates
+            document.getElementById('map').classList.add('pick-mode');
+            document.getElementById('pick-banner').classList.add('active');
+            document.getElementById('pick-cam-name').textContent = camName;
+
+            // Highlight CRUD row
+            var row = document.getElementById('crud-' + id);
+            if (row) row.classList.add('picking');
+            var btn = document.getElementById('pick-btn-' + id);
+            if (btn) { btn.classList.add('active'); btn.textContent = '✕ Batal Pilih'; }
+
+            // Close CRUD panel to make map visible
+            var panel = document.getElementById('crud-panel');
+            if (panel.classList.contains('open')) panel.classList.remove('open');
+
+            // Listen for map click
+            mapInstance.once('click', handleMapPick);
+        }
+
+        function handleMapPick(e) {
+            if (!pickModeActive || !pickTargetId) return;
+            var lat = e.latlng.lat;
+            var lng = e.latlng.lng;
+
+            // Show temporary marker at picked location
+            if (pickTempMarker) { mapInstance.removeLayer(pickTempMarker); }
+            pickTempMarker = L.marker([lat, lng], {
+                icon: L.divIcon({
+                    className: '',
+                    html: '<div style="width:20px;height:20px;background:#eab308;border:3px solid #fff;border-radius:50%;box-shadow:0 0 12px #eab30888;animation:pickPulse 1s infinite"></div>',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                })
+            }).addTo(mapInstance);
+
+            // Update camLocations
+            for (var i = 0; i < camLocations.length; i++) {
+                if (camLocations[i].id === pickTargetId) {
+                    camLocations[i].lat = lat;
+                    camLocations[i].lng = lng;
+                    break;
+                }
+            }
+
+            // Update the actual marker position
+            if (mapMarkers[pickTargetId]) {
+                mapMarkers[pickTargetId].marker.setLatLng([lat, lng]);
+                mapMarkers[pickTargetId].loc.lat = lat;
+                mapMarkers[pickTargetId].loc.lng = lng;
+            }
+
+            // Save to localStorage
+            localStorage.setItem('cctv_locations', JSON.stringify(camLocations));
+
+            // Clean up pick mode
+            var savedId = pickTargetId;
+            cancelPickMode();
+
+            // Re-open CRUD panel and rebuild to show new values
+            var panel = document.getElementById('crud-panel');
+            buildCrudPanel();
+            if (!panel.classList.contains('open')) panel.classList.add('open');
+
+            // Flash the saved row green
+            setTimeout(function () {
+                var row = document.getElementById('crud-' + savedId);
+                if (row) { row.style.borderColor = '#22c55e'; setTimeout(function () { row.style.borderColor = ''; }, 2000); }
+                // Remove temp marker after short delay
+                if (pickTempMarker) { mapInstance.removeLayer(pickTempMarker); pickTempMarker = null; }
+            }, 500);
+        }
+
+        function cancelPickMode() {
+            if (!pickModeActive) return;
+            document.getElementById('map').classList.remove('pick-mode');
+            document.getElementById('pick-banner').classList.remove('active');
+
+            // Reset CRUD row highlight
+            if (pickTargetId) {
+                var row = document.getElementById('crud-' + pickTargetId);
+                if (row) row.classList.remove('picking');
+                var btn = document.getElementById('pick-btn-' + pickTargetId);
+                if (btn) { btn.classList.remove('active'); btn.textContent = '📍 Pilih di Peta'; }
+            }
+
+            // Remove temp marker
+            if (pickTempMarker) { mapInstance.removeLayer(pickTempMarker); pickTempMarker = null; }
+
+            // Remove click listener if still attached
+            mapInstance.off('click', handleMapPick);
+
+            pickModeActive = false;
+            pickTargetId = null;
+        }
+
+        var cams = [
+            { id: 'labkesda1', name: 'Labkesda 1', grp: 'Labkesda', on: true, bw: 0 },
+            { id: 'labkesda2', name: 'Labkesda 2', grp: 'Labkesda', on: true, bw: 0 },
+            { id: 'sosial1', name: 'Sosial 1', grp: 'Dinsos', on: true, bw: 0 },
+            { id: 'sosial2', name: 'Sosial 2', grp: 'Dinsos', on: true, bw: 0 },
+            { id: 'asambu1', name: 'Asambu 1', grp: 'Asambu', on: true, bw: 0 },
+            { id: 'asambu2', name: 'Asambu 2', grp: 'Asambu', on: true, bw: 0 },
+            { id: 'unaaha1', name: 'Kel. Unaaha 1', grp: 'Kel. Unaaha', on: true, bw: 0 },
+            { id: 'unaaha2', name: 'Kel. Unaaha 2', grp: 'Kel. Unaaha', on: true, bw: 0 },
+            { id: 'pasar_asinua1', name: 'Pasar Asinua 1', grp: 'Pasar Asinua', on: true, bw: 0 },
+            { id: 'pasar_asinua2', name: 'Pasar Asinua 2', grp: 'Pasar Asinua', on: true, bw: 0 },
+            { id: 'asinua1', name: 'Asinua 1', grp: 'Asinua', on: true, bw: 0 },
+            { id: 'asinua2', name: 'Asinua 2', grp: 'Asinua', on: true, bw: 0 },
+            { id: 'inalahi1', name: 'Inalahi 1', grp: 'Inalahi', on: true, bw: 0 },
+            { id: 'inalahi2', name: 'Inalahi 2', grp: 'Inalahi', on: true, bw: 0 },
+            { id: 'uepai1', name: 'Uepai 1', grp: 'Uepai', on: true, bw: 0 },
+            { id: 'uepai2', name: 'Uepai 2', grp: 'Uepai', on: true, bw: 0 },
+            { id: 'unilaki1', name: 'Unilaki 1', grp: 'Unilaki', on: true, bw: 0 },
+            { id: 'unilaki2', name: 'Unilaki 2', grp: 'Unilaki', on: true, bw: 0 },
+            { id: 'damkar1', name: 'Damkar 1', grp: 'Damkar', on: true, bw: 0 },
+            { id: 'damkar2', name: 'Damkar 2', grp: 'Damkar', on: true, bw: 0 }
+        ];
+        var camStatus = {}; // Global camera status: 'loading', 'live', 'error'
+        cams.forEach(function(c) { camStatus[c.id] = 'loading'; });
+
+        var players = {}, layout = '2x2', counts = { '1x1': 1, '2x2': 4, '3x3': 9, '4x4': 16 }, online = 0;
+        var currentPage = 0;
+        var quality = 'sd'; // Default SD (substream)
+
+        function updateClock() {
+            var now = new Date();
+            var d = now.toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+            var t = now.toLocaleTimeString('id-ID', { hour12: false });
+            var elDate = document.getElementById('date'), elTime = document.getElementById('time');
+            if (elDate) elDate.textContent = d;
+            if (elTime) elTime.textContent = t;
+            
+            // Sidebar clock for mobile
+            var sbDate = document.getElementById('sb-date'), sbTime = document.getElementById('sb-time');
+            if (sbDate) sbDate.textContent = d;
+            if (sbTime) sbTime.textContent = t.substring(0, 5);
+        }
+        setInterval(updateClock, 1000); updateClock();
+
+        function setBaseLayer(key) {
+            for (var k in baseLayers) mapInstance.removeLayer(baseLayers[k]);
+            mapInstance.addLayer(baseLayers[key]);
+            
+            if (window.updateLabels) window.updateLabels(key);
+
+            var btns = document.querySelectorAll('.layer-btn');
+            for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+            var targetBtn = document.getElementById('btn-' + key);
+            if (targetBtn) targetBtn.classList.add('active');
+        }
+
+        function toggleBoundary(type) {
+            if (!mapInstance || !window.boundaryLayers[type]) return;
+            var chk = document.getElementById('chk-' + type);
+            if (chk.checked) {
+                window.boundaryLayers[type].addTo(mapInstance);
+            } else {
+                mapInstance.removeLayer(window.boundaryLayers[type]);
+            }
+        }
+
+        function setLayout(l) {
+            document.querySelectorAll('button[onclick^="setLayout"]').forEach(function (b) { b.classList.remove('active') });
+            var b = event.target;
+            if (b) b.classList.add('active');
+            layout = l;
+            document.getElementById('grid').className = 'grid grid-' + l;
+            currentPage = 0; render();
+        }
+
+        var currentMode = 'mse';
+        function setStreamMode(m) {
+            currentMode = m;
+            camCache = {}; // clear cache to force rerender completely with new mode
+            for(var k in players) if(players[k]) players[k].close();
+            players = {}; 
+            render();
+        }
+
+        function setQuality(q) {
+            quality = q;
+            document.getElementById('btn-sd').className = 'btn' + (q === 'sd' ? ' active' : '');
+            document.getElementById('btn-hd').className = 'btn' + (q === 'hd' ? ' active' : '');
+            render();
+        }
+
+        function getStreamId(baseId) {
+            return quality === 'sd' ? baseId + '_sub' : baseId;
+        }
+
+        function toggleSidebar() { 
+            var s = document.getElementById('sidebar');
+            if (s.classList.contains('hidden')) {
+                s.classList.remove('hidden');
+                s.classList.add('flex');
+            } else {
+                s.classList.add('hidden');
+                s.classList.remove('flex');
+            }
+        }
+        function toggleFS() { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+        function closeCamFS(btn) { btn.closest('.cam-box').classList.remove('fs'); }
+        function openCamFS(btn) { btn.closest('.cam-box').classList.add('fs'); }
+        function screenshot(id) {
+            var v = document.getElementById('v-' + id);
+            var c = document.createElement('canvas');
+            c.width = v.videoWidth; c.height = v.videoHeight;
+            c.getContext('2d').drawImage(v, 0, 0);
+            var a = document.createElement('a');
+            a.download = id + '_' + Date.now() + '.png';
+            a.href = c.toDataURL();
+            a.click();
+        }
+
+        function getVisibleCams() {
+            return cams.filter(function (c) {
+                var matchSearch = c.name.toLowerCase().includes(searchQuery) || (c.grp && c.grp.toLowerCase().includes(searchQuery));
+                return c.on && matchSearch;
+            });
+        }
+        function getTotalPages() { var v = getVisibleCams(); var perPage = counts[layout] || 4; return Math.ceil(v.length / perPage); }
+        function prevPage() { if (currentPage > 0) { currentPage--; render(); } }
+        function nextPage() { if (currentPage < getTotalPages() - 1) { currentPage++; render(); } }
+
+        function updatePagination() {
+            var total = getTotalPages();
+            document.getElementById('pageInfo').textContent = (currentPage + 1) + ' / ' + total;
+            document.getElementById('prevBtn').disabled = currentPage === 0;
+            document.getElementById('nextBtn').disabled = currentPage >= total - 1;
+            document.getElementById('pagination').style.display = total > 1 ? 'flex' : 'none';
+        }
+
+        // Camera element cache - keeps DOM & WebRTC alive across page changes
+        var camCache = {};
+
+        function getCamBox(c) {
+            if (camCache[c.id]) return camCache[c.id];
+
+            var box = document.createElement('div');
+            box.className = 'cam-box';
+            box.id = 'box-' + c.id;
+            box.draggable = true;
+            box.dataset.idx = cams.indexOf(c);
+            var currentSt = camStatus[c.id] || 'loading';
+            var badgeText = 'Loading', badgeClass = 'badge loading';
+            if (currentSt === 'live') { badgeText = 'LIVE'; badgeClass = 'badge'; }
+            else if (currentSt === 'error') { badgeText = 'Error'; badgeClass = 'badge error'; }
+
+            var videoElementHTML = '';
+            if (currentMode === 'webrtc') {
+                videoElementHTML = '<video id="v-' + c.id + '" muted autoplay playsinline></video>';
+            } else {
+                var streamUrl = API + '/stream.html?src=' + getStreamId(c.id) + '&mode=' + currentMode;
+                videoElementHTML = '<iframe id="v-' + c.id + '" src="' + streamUrl + '" style="border:none;width:100%;height:100%;position:absolute;top:0;left:0;z-index:0" allowfullscreen></iframe>';
+            }
+
+            box.innerHTML = videoElementHTML + '<button class="close-fs" onclick="closeCamFS(this)">✕</button><div class="cam-hdr"><div><div class="cam-name">' + c.name + '</div><div class="cam-grp">' + c.grp + '</div></div><div class="' + badgeClass + '" id="st-' + c.id + '">' + badgeText + '</div></div>' +
+                '<div class="ai-badge-wrap">' +
+                    '<div class="ai-chip">👤 <span class="ai-cnt-p">0</span></div>' +
+                    '<div class="ai-chip">🏍️ <span class="ai-cnt-m">0</span></div>' +
+                    '<div class="ai-chip">🚗 <span class="ai-cnt-c">0</span></div>' +
+                '</div>' +
+                '<div class="trash-badge trash-kosong" id="trash-' + c.id + '" style="display:none">🗑️ Bersih</div>' +
+                (trashZones[c.id] ? trashZones[c.id].map(function(z,zi){ return '<div class="trash-box tb-bersih" id="tb-'+c.id+'-'+zi+'" style="top:'+z.top+'%;left:'+z.left+'%;width:'+z.w+'%;height:'+z.h+'%"><div class="trash-box-label">'+z.label+'</div></div>'; }).join('') : '') +
+                '<div class="cam-ctrl"><button class="cbtn" onclick="togglePiP(\'' + c.id + '\')" title="Picture-in-Picture">📌</button><button class="cbtn" onclick="screenshot(\'' + c.id + '\')" title="Screenshot">📷</button><button class="cbtn" onclick="openCamFS(this)" title="Fullscreen">⛶</button></div>';
+            box.addEventListener('dragstart', handleDragStart);
+            box.addEventListener('dragover', handleDragOver);
+            box.addEventListener('dragleave', handleDragLeave);
+            box.addEventListener('drop', handleDrop);
+            box.addEventListener('dragend', handleDragEnd);
+
+            camCache[c.id] = box;
+
+            if (currentMode === 'webrtc') {
+                // Start WebRTC connection logic
+                setTimeout(function() { initWebRTC(c.id); }, Object.keys(camCache).length * 150);
+            } else {
+                // Instantly define alive since stream.html does auto-reconnect
+                setTimeout(function() {
+                    camStatus[c.id] = 'live';
+                    var st = document.getElementById('st-' + c.id);
+                    if (st) { st.textContent = 'LIVE'; st.className = 'badge'; }
+                }, 1000);
+            }
+
+            return box;
+        }
+
+        function render() {
+            var g = document.getElementById('grid');
+            var perPage = counts[layout] || 4;
+            var visible = getVisibleCams();
+            var start = currentPage * perPage;
+            var pageItems = visible.slice(start, start + perPage);
+
+            // STOP and CLEANUP players that are no longer in the grid
+            var visibleIds = pageItems.map(function(c) { return c.id; });
+            for (var id in players) {
+                if (!visibleIds.includes(id)) {
+                    if (players[id].close) players[id].close();
+                    delete players[id];
+                    if (camCache[id]) delete camCache[id];
+                }
+            }
+
+            // Detach current children
+            while (g.firstChild) g.removeChild(g.firstChild);
+
+            for (var i = 0; i < pageItems.length; i++) {
+                var c = pageItems[i];
+                var box = getCamBox(c);
+                box.dataset.idx = cams.indexOf(c);
+                g.appendChild(box);
+
+                // Re-attach video srcObject if it was detached but player exists
+                var v = document.getElementById('v-' + c.id);
+                if (v && players[c.id] && !v.srcObject && currentMode === 'webrtc') {
+                    var pc = players[c.id];
+                    var receivers = pc.getReceivers ? pc.getReceivers() : [];
+                    var videoReceiver = receivers.find(function(r) { return r.track && r.track.kind === 'video'; });
+                    if (videoReceiver) {
+                        v.srcObject = new MediaStream([videoReceiver.track]);
+                        v.play().catch(function(){});
+                    }
+                }
+            }
+            updateSidebar();
+            updatePagination();
+        }
+
+        var dragSrcIdx = null;
+        function handleDragStart(e) { dragSrcIdx = parseInt(this.dataset.idx); this.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; }
+        function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; this.classList.add('dragover'); }
+        function handleDragLeave() { this.classList.remove('dragover'); }
+        function handleDrop(e) {
+            e.preventDefault(); this.classList.remove('dragover');
+            var targetIdx = parseInt(this.dataset.idx);
+            if (dragSrcIdx !== null && dragSrcIdx !== targetIdx) {
+                var temp = cams[dragSrcIdx]; cams.splice(dragSrcIdx, 1); cams.splice(targetIdx, 0, temp); render();
+            }
+        }
+        function handleDragEnd() { this.classList.remove('dragging'); dragSrcIdx = null; }
+
+        function initWebRTC(id) {
+            var v = document.getElementById('v-' + id), st = document.getElementById('st-' + id);
+            if (!v) return;
+            var streamId = getStreamId(id);
+            var pc = new RTCPeerConnection({ iceServers: [] });
+            pc.addTransceiver('video', { direction: 'recvonly' });
+            
+            pc.ontrack = function(event) {
+                v.srcObject = event.streams[0];
+                v.play().catch(function(){});
+
+                // Add jitter buffer for smoother playback (trades ~500ms latency for smoothness)
+                try {
+                    var receiver = pc.getReceivers().find(function(r) { return r.track.kind === 'video'; });
+                    if (receiver && typeof receiver.jitterBufferTarget !== 'undefined') {
+                        receiver.jitterBufferTarget = 5000; // 5 detik buffer untuk kelancaran (smoothness)
+                    }
+                } catch(e) {}
+            };
+            pc.onconnectionstatechange = function() {
+                if (pc.connectionState === 'connected') {
+                    camStatus[id] = 'live';
+                    if (st) { st.textContent = 'LIVE'; st.className = 'badge'; }
+                    var liveCnt = 0;
+                    for (var k in camStatus) { if (camStatus[k] === 'live') liveCnt++; }
+                    online = liveCnt;
+                    if(document.getElementById('cnt')) document.getElementById('cnt').textContent = online;
+                } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+                    camStatus[id] = 'loading';
+                    if (st) { st.textContent = 'Retry...'; st.className = 'badge loading'; }
+                    setTimeout(function() { if (players[id]) { players[id].close(); delete players[id]; } initWebRTC(id); }, 5000);
+                }
+            };
+
+            players[id] = pc;
+            
+            pc.createOffer().then(function(offer) {
+                return pc.setLocalDescription(offer);
+            }).then(function() {
+                return fetch(API + '/api/webrtc?src=' + streamId, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json', 'Authorization': authHeader },
+                    body: JSON.stringify({ type: pc.localDescription.type, sdp: pc.localDescription.sdp }) 
+                });
+            }).then(function(res) {
+                var ct = res.headers.get("content-type");
+                if (ct && ct.includes("application/json")) return res.json().then(function(data){ return data.sdp; });
+                return res.text();
+            }).then(function(sdp) {
+                if (sdp && sdp.indexOf('v=0') === 0) {
+                    pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: sdp }));
+                } else {
+                    throw new Error(sdp);
+                }
+            }).catch(function(err) {
+                camStatus[id] = 'error';
+                if (st) { st.textContent = 'Error'; st.className = 'badge error'; }
+                console.error("WebRTC Error ["+id+"]:", err);
+                setTimeout(function() { if (players[id]) { players[id].close(); delete players[id]; } initWebRTC(id); }, 8000);
+            });
+        }
+
+        function updateSidebar() {
+            var bw = '', cl = '';
+            for (var i = 0; i < cams.length; i++) {
+                var c = cams[i];
+                var st = camStatus[c.id] || 'offline';
+                var color = st === 'live' ? '#0ea5e9' : '#ef4444';
+                bw += '<div class="sb-item"><span>' + c.name + '</span><span class="sb-bw" style="color:' + color + '">' + (c.bw || 0) + ' KB/s</span></div>';
+                cl += '<label class="sb-cam"><input type="checkbox" ' + (c.on ? 'checked' : '') + ' onchange="toggleCam(\'' + c.id + '\')">' + c.name + '</label>';
+            }
+            document.getElementById('bw-list').innerHTML = bw;
+            document.getElementById('cam-list').innerHTML = cl;
+        }
+
+        function toggleCam(id) {
+            for (var i = 0; i < cams.length; i++)if (cams[i].id === id) { cams[i].on = !cams[i].on; break }
+            currentPage = 0; render();
+        }
+
+        function fetchBW() {
+            fetch(API + '/api/streams').then(function (r) { return r.json() }).then(function (d) {
+                for (var i = 0; i < cams.length; i++) {
+                    var c = cams[i], s = d[c.id];
+                    if (s && s.producers && s.producers[0]) {
+                        var bytes = s.producers[0].bytes_recv || 0;
+                        if (c.lastBytes !== undefined) {
+                            c.bw = Math.round((bytes - c.lastBytes) / 1024 / 3);
+                        } else {
+                            c.bw = 0;
+                        }
+                        c.lastBytes = bytes;
+                    } else {
+                        c.bw = 0;
+                    }
+                    
+                    // Update active map popup bandwidth if exists
+                    var popupBw = document.getElementById('bw-pv-' + c.id);
+                    if (popupBw) {
+                        popupBw.textContent = (c.bw || 0) + ' KB/s';
+                        popupBw.style.color = (camStatus[c.id] === 'live') ? '#0ea5e9' : '#ef4444';
+                    }
+                }
+                updateSidebar();
+            }).catch(function () { });
+        }
+        setInterval(fetchBW, 3000);
+
+        // Render initial CCTV list (hidden initially if WebGIS is active)
+        var trashCams = cams.map(function(c) { return c.id; });
+        var trashStatus = {};
+        var trashActive = false;
+
+        // Posisi bounding box (% dari video) — disesuaikan per kamera
+        // Setiap kamera bisa punya beberapa box: [{top,left,w,h,label}]
+        var trashZones = {
+            'unaaha1': [
+                {top:18, left:8, w:32, h:55, label:'🗑️ Bak Sampah'},
+                {top:60, left:0, w:20, h:30, label:'⚠️ Sampah Jalan'}
+            ],
+            'unaaha2': [
+                {top:55, left:5, w:35, h:35, label:'🗑️ Bak Sampah'}
+            ],
+            'asambu1': [
+                {top:15, left:55, w:35, h:45, label:'🗑️ Bak Sampah'},
+                {top:50, left:35, w:25, h:30, label:'⚠️ Sampah Jalan'}
+            ],
+            'asambu2': [
+                {top:30, left:50, w:40, h:50, label:'🗑️ Bak Sampah'}
+            ],
+            'pasar_asinua1': [
+                {top:20, left:10, w:35, h:50, label:'🗑️ Bak Sampah'},
+                {top:55, left:50, w:30, h:30, label:'⚠️ Sampah Jalan'}
+            ],
+            'pasar_asinua2': [
+                {top:25, left:45, w:40, h:45, label:'🗑️ Bak Sampah'}
+            ]
+        };
+        render();
+
+        // Initialize UI state based on localStorage choice
+        setTimeout(function () {
+            switchTab(activeTab);
+            fetchWeather();
+            setInterval(fetchWeather, 3600000); // 1 hour
+            setInterval(simulateAI, 4000);
+            // Restore theme
+            if (localStorage.getItem('cctv_theme') === 'light') {
+                document.body.classList.add('light-mode');
+                document.getElementById('btn-theme').textContent = '☀️';
+            }
+        }, 100);
+
+        /* ===== VISUAL FEATURES ===== */
+
+        /* --- Picture-in-Picture --- */
+        function togglePiP(id) {
+            var v = document.getElementById('v-' + id);
+            if (!v) return;
+            if (document.pictureInPictureElement === v) {
+                document.exitPictureInPicture().catch(function(){});
+            } else {
+                v.requestPictureInPicture().catch(function(e) {
+                    console.error('PiP error:', e);
+                    alert('PiP tidak didukung atau video belum dimuat.');
+                });
+            }
+        }
+
+        /* --- Dark/Light Mode --- */
+        function toggleTheme() {
+            var isLight = document.body.classList.toggle('light-mode');
+            document.getElementById('btn-theme').textContent = isLight ? '☀️' : '🌙';
+            localStorage.setItem('cctv_theme', isLight ? 'light' : 'dark');
+        }
+
+        /* --- Mode Patroli (Auto-Cycle) --- */
+        var patrolInterval = null;
+        function togglePatrol() {
+            var btn = document.getElementById('btn-patrol');
+            if (patrolInterval) {
+                clearInterval(patrolInterval);
+                patrolInterval = null;
+                btn.textContent = '▶ Patroli';
+                btn.classList.remove('active');
+            } else {
+                btn.textContent = '⏸ Stop';
+                btn.classList.add('active');
+                patrolInterval = setInterval(function() {
+                    if (currentPage >= getTotalPages() - 1) {
+                        currentPage = 0;
+                    } else {
+                        currentPage++;
+                    }
+                    render();
+                }, 15000);
+            }
+        }
+
+        /* AI & Weather Logic */
+        var aiActive = false;
+
+        function toggleAI() {
+            aiActive = !aiActive;
+            document.getElementById('btn-ai').classList.toggle('active', aiActive);
+            document.getElementById('grid').classList.toggle('ai-active', aiActive);
+        }
+
+        function toggleTrash() {
+            trashActive = document.getElementById('chk-trash').checked;
+            document.getElementById('grid').classList.toggle('trash-active', trashActive);
+            if (trashActive) { simulateTrash(); }
+            else {
+                // Clear all alerts and badges when turned off
+                trashCams.forEach(function(camId) {
+                    var box = document.getElementById('box-' + camId);
+                    if (box) box.classList.remove('trash-alert');
+                });
+            }
+            updateTrashSidebar();
+        }
+
+        function fetchWeather() {
+            // Using a more stable API or handling errors gracefully
+            fetch('https://api.open-meteo.com/v1/forecast?latitude=-3.85&longitude=122.06&current_weather=true')
+                .then(function(r) { return r.json(); }).then(function(d) {
+                    var cw = d.current_weather;
+                    if (!cw) return;
+                    document.getElementById('weather-card').style.display = 'flex';
+                    document.getElementById('weather-temp').textContent = Math.round(cw.temperature) + '°C';
+                    var code = cw.weathercode;
+                    var icon = '☀️', desc = 'Cerah';
+                    if (code > 0 && code < 4) { icon = '☁️'; desc = 'Berawan'; }
+                    else if (code >= 51) { icon = '🌧️'; desc = 'Hujan'; }
+                    document.getElementById('weather-icon').textContent = icon;
+                    document.getElementById('weather-desc').textContent = desc;
+                }).catch(function(e) { console.error("Weather error:", e); });
+        }
+
+        function simulateAI() {
+            if (!aiActive) return;
+            cams.forEach(function(c) {
+                var st = camStatus[c.id];
+                var p = 0, m = 0, cc = 0;
+                if (st === 'live') {
+                    p = Math.floor(Math.random() * 8);
+                    m = Math.floor(Math.random() * 5);
+                    cc = Math.floor(Math.random() * 3);
+                }
+                var box = document.getElementById('box-' + c.id);
+                if (box) {
+                    var pp = box.querySelector('.ai-cnt-p'); if(pp) pp.textContent = p;
+                    var mm = box.querySelector('.ai-cnt-m'); if(mm) mm.textContent = m;
+                    var ccc = box.querySelector('.ai-cnt-c'); if(ccc) ccc.textContent = cc;
+                }
+                var pBw = document.getElementById('ai-pv-' + c.id);
+                if (pBw) {
+                    var pp2 = pBw.querySelector('.ai-cnt-p'); if(pp2) pp2.textContent = p;
+                    var mm2 = pBw.querySelector('.ai-cnt-m'); if(mm2) mm2.textContent = m;
+                    var cc2 = pBw.querySelector('.ai-cnt-c'); if(cc2) cc2.textContent = cc;
                 }
             });
-        });
-    }
+            // Also run trash simulation if active
+            if (trashActive) simulateTrash();
+        }
 
-    // Auto-reload
-    setInterval(reload, 1000);
+        function simulateTrash() {
+            var boxLabels = { bersih: '🗑️ Kosong', sampah: '⚠️ Penuh', berserakan: '🚨 Berserakan' };
+            var boxCss = { bersih: 'tb-bersih', sampah: 'tb-sampah', berserakan: 'tb-berserakan' };
+            var badgeCss = { bersih: 'trash-kosong', sampah: 'trash-penuh', berserakan: 'trash-berserakan' };
+            var badgeLabels = { bersih: '✅ Bersih', sampah: '⚠️ Sampah Terdeteksi', berserakan: '🚨 Berserakan!' };
+            var popupColors = { bersih: '#22c55e', sampah: '#eab308', berserakan: '#ef4444' };
+            var popupBg = { bersih: 'rgba(34,197,94,0.15)', sampah: 'rgba(234,179,8,0.15)', berserakan: 'rgba(239,68,68,0.15)' };
+            var popupBorder = { bersih: 'rgba(34,197,94,0.3)', sampah: 'rgba(234,179,8,0.3)', berserakan: 'rgba(239,68,68,0.3)' };
+            var weights = ['bersih','bersih','bersih','sampah','sampah','sampah','berserakan','berserakan'];
 
-    const url = new URL('api', location.href);
-    fetch(url, {cache: 'no-cache'}).then(r => r.json()).then(data => {
-        const info = document.querySelector('.info');
-        info.innerText = `version: ${data.version} / config: ${data.config_path}`;
-    });
+            trashCams.forEach(function(camId) {
+                var st = camStatus[camId];
+                if (st !== 'live') {
+                    trashStatus[camId] = 'bersih';
+                    var box = document.getElementById('box-' + camId);
+                    if (box) box.classList.remove('trash-alert');
+                    return;
+                }
 
-    reload();
-</script>
+                // Determine status per camera
+                var zones = trashZones[camId];
+                var worstStatus = 'bersih';
 
+                if (zones) {
+                    // Each zone gets its own random status
+                    for (var zi = 0; zi < zones.length; zi++) {
+                        var zStatus = weights[Math.floor(Math.random() * weights.length)];
+                        var tbEl = document.getElementById('tb-' + camId + '-' + zi);
+                        if (tbEl) {
+                            tbEl.className = 'trash-box ' + boxCss[zStatus];
+                            var lbl = tbEl.querySelector('.trash-box-label');
+                            if (lbl) lbl.textContent = boxLabels[zStatus] + ' ' + (70+Math.floor(Math.random()*28)) + '%';
+                        }
+                        if (zStatus === 'berserakan') worstStatus = 'berserakan';
+                        else if (zStatus === 'sampah' && worstStatus !== 'berserakan') worstStatus = 'sampah';
+                    }
+                }
+
+                trashStatus[camId] = worstStatus;
+
+                // Update badge
+                var badge = document.getElementById('trash-' + camId);
+                if (badge) {
+                    badge.className = 'trash-badge ' + badgeCss[worstStatus];
+                    badge.innerHTML = badgeLabels[worstStatus];
+                }
+
+                // Alert blink
+                var box = document.getElementById('box-' + camId);
+                if (box) box.classList.toggle('trash-alert', worstStatus === 'berserakan');
+
+                // Update map popup
+                var pvEl = document.getElementById('trash-pv-' + camId);
+                if (pvEl) {
+                    pvEl.style.background = popupBg[worstStatus];
+                    pvEl.style.borderColor = popupBorder[worstStatus];
+                    var lbl = pvEl.querySelector('.trash-pv-label');
+                    if (lbl) {
+                        lbl.textContent = badgeLabels[worstStatus].replace(/^[^\s]+\s/, '');
+                        lbl.style.color = popupColors[worstStatus];
+                    }
+                }
+            });
+            updateTrashSidebar();
+        }
+
+        function updateTrashSidebar() {
+            var list = document.getElementById('trash-list');
+            if (!list) return;
+            if (!trashActive) { list.innerHTML = '<div style="color:#555; font-size:11px; padding:6px 0">Centang untuk mengaktifkan monitoring</div>'; return; }
+            var html = '';
+            var colors = { bersih: '#22c55e', sampah: '#eab308', berserakan: '#ef4444' };
+            var bgColors = { bersih: 'rgba(34,197,94,0.15)', sampah: 'rgba(234,179,8,0.15)', berserakan: 'rgba(239,68,68,0.15)' };
+            var icons = { bersih: '✅', sampah: '⚠️', berserakan: '🚨' };
+            var statusText = { bersih: 'Bersih', sampah: 'Sampah', berserakan: 'Berserakan' };
+            // Only show cameras with detections (not bersih)
+            var hasIssue = false;
+            trashCams.forEach(function(camId) {
+                var st = trashStatus[camId] || 'bersih';
+                if (camStatus[camId] !== 'live') return;
+                var name = camId;
+                for (var i = 0; i < cams.length; i++) { if (cams[i].id === camId) { name = cams[i].name; break; } }
+                html += '<div class="sb-trash-item">' +
+                    '<span style="font-size:11px">' + name + '</span>' +
+                    '<span class="sb-trash-status" style="color:' + colors[st] + '; background:' + bgColors[st] + '">' + icons[st] + ' ' + statusText[st] + '</span>' +
+                    '</div>';
+                if (st !== 'bersih') hasIssue = true;
+            });
+            if (!html) html = '<div style="color:#555; font-size:11px; padding:6px 0">Tidak ada kamera online</div>';
+            list.innerHTML = html;
+        }
+        // Wrapper for dashboard initialization
+        function startDashboard() {
+            updateClock();
+            setInterval(updateClock, 1000);
+            
+            var storedCams = localStorage.getItem('cctv_cams_v1');
+            var cams = JSON.parse(storedCams || '[]');
+            if (cams.length === 0) {
+                cams = [{ id: 'test_dummy', name: 'TEST CAMERA', zone: 'KONAWE' }];
+                localStorage.setItem('cctv_cams_v1', JSON.stringify(cams));
+            }
+            cams.forEach(function(c) { 
+                camStatus[c.id] = 'offline'; 
+            });
+            
+            render();
+            
+            setTimeout(function() {
+                switchTab(activeTab);
+            }, 100);
+        }
+
+        // Start Robust Loading sequence
+        (function() {
+            var criticalAssets = [
+                forceLoad('assets/vendors/keenicons/styles.bundle.css', 'css'),
+                forceLoad('assets/css/styles.css', 'css')
+            ];
+
+            var dataAssets = [
+                forceLoad('/geojson/kecamatan.js', 'js'),
+                forceLoad('/geojson/kelurahan.js', 'js')
+            ];
+
+            // 1. Load critical UI styles first, then start ticking
+            Promise.all(criticalAssets).then(function() {
+                console.warn('UI Styles loaded. Starting Dashboard...');
+                startDashboard(); // Clock starts here
+            }).catch(function(err) {
+                console.error('Critical assets failed, starting anyway:', err);
+                startDashboard();
+            });
+
+            // 2. Load heavy Map data in background
+            Promise.all(dataAssets).then(function() {
+                console.warn('Map Data loaded. Map is now ready.');
+            }).catch(function(err) {
+                console.error('Non-critical map data failed to load:', err);
+            });
+        })();
+    </script>
 </body>
 </html>
