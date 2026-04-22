@@ -1468,8 +1468,8 @@
             { id: 'uepai2', name: 'Uepai 2', grp: 'Uepai', lat: -3.877914, lng: 122.039831, lokasi: 'Kel. Uepai, Kec. Unaaha (Bendungan Lama)' },
             { id: 'unilaki1', name: 'Unilaki 1', grp: 'Unilaki', lat: -3.872935, lng: 122.094469, lokasi: 'Kel. Lalosabila, Kec. Wawotobi' },
             { id: 'unilaki2', name: 'Unilaki 2', grp: 'Unilaki', lat: -3.873035, lng: 122.094569, lokasi: 'Kel. Lalosabila, Kec. Wawotobi' },
-            { id: 'damkar1', name: 'Damkar 1', grp: 'Damkar', lat: -3.858378, lng: 122.057764, lokasi: 'Kel. Ambeikairi, Kec. Unaaha' },
-            { id: 'damkar2', name: 'Damkar 2', grp: 'Damkar', lat: -3.858478, lng: 122.057864, lokasi: 'Kel. Ambeikairi, Kec. Unaaha' }
+            { id: 'damakar1', name: 'Damkar 1', grp: 'Damkar', lat: -3.858378, lng: 122.057764, lokasi: 'Kel. Ambeikairi, Kec. Unaaha' },
+            { id: 'damakar2', name: 'Damkar 2', grp: 'Damkar', lat: -3.858478, lng: 122.057864, lokasi: 'Kel. Ambeikairi, Kec. Unaaha' }
         ];
 
         // Load saved or use defaults
@@ -1536,7 +1536,7 @@
             };
             pc.createOffer().then(function(offer) {
                 pc.setLocalDescription(offer);
-                fetch(API + '/api/webrtc?src=' + id + '_sub', { 
+                fetch(API + '/api/webrtc?src=' + id + '_low', { 
                     method: 'POST', 
                     headers: { 
                         'Content-Type': 'application/json',
@@ -1958,8 +1958,8 @@
             { id: 'uepai2', name: 'Uepai 2', grp: 'Uepai', on: true, bw: 0 },
             { id: 'unilaki1', name: 'Unilaki 1', grp: 'Unilaki', on: true, bw: 0 },
             { id: 'unilaki2', name: 'Unilaki 2', grp: 'Unilaki', on: true, bw: 0 },
-            { id: 'damkar1', name: 'Damkar 1', grp: 'Damkar', on: true, bw: 0 },
-            { id: 'damkar2', name: 'Damkar 2', grp: 'Damkar', on: true, bw: 0 }
+            { id: 'damakar1', name: 'Damkar 1', grp: 'Damkar', on: true, bw: 0 },
+            { id: 'damakar2', name: 'Damkar 2', grp: 'Damkar', on: true, bw: 0 }
         ];
         var camStatus = {}; // Global camera status: 'loading', 'live', 'error'
         cams.forEach(function(c) { camStatus[c.id] = 'loading'; });
@@ -2031,7 +2031,7 @@
         }
 
         function getStreamId(baseId) {
-            return quality === 'sd' ? baseId + '_sub' : baseId;
+            return quality === 'sd' ? baseId + '_low' : baseId + '_high';
         }
 
         function toggleSidebar() { 

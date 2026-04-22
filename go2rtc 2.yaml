@@ -8,6 +8,10 @@ rtsp:
   listen: ":8554"
   username: admin
   password: "matamata#" # Samakan dengan password di atas
+  default_transport: tcp
+
+ffmpeg:
+  bin: /opt/homebrew/bin/ffmpeg
 
 hls:
   segment_duration: 10
@@ -15,65 +19,112 @@ hls:
 
 # 2. DAFTAR STREAMS
 streams:
-  # Labkesda
-  labkesda1_high: rtsp://admin:2025-CCTVknw@cctv-labkesda.ddns.net:6554/stream1
-  labkesda1_low: rtsp://admin:2025-CCTVknw@cctv-labkesda.ddns.net:6554/stream2
-  labkesda2_high: rtsp://admin:2025-CCTVknw@cctv-labkesda.ddns.net:6555/stream1
-  labkesda2_low: rtsp://admin:2025-CCTVknw@cctv-labkesda.ddns.net:6555/stream2
+  # 0. ALIASES (Compatibility for older dashboard versions or cached states)
+  labkesda1: labkesda1_low
+  labkesda2: labkesda2_low
+  sosial1: sosial1_low
+  sosial2: sosial2_low
+  asambu1: asambu1_low
+  asambu2: asambu2_low
+  unaaha1: unaaha1_low
+  unaaha2: unaaha2_low
+  pasar_asinua1: pasar_asinua1_low
+  pasar_asinua2: pasar_asinua2_low
+  asinua1: asinua1_low
+  asinua2: asinua2_low
+  inalahi1: inalahi1_low
+  inalahi2: inalahi2_low
+  uepai1: uepai1_low
+  uepai2: uepai2_low
+  unilaki1: unilaki1_low
+  unilaki2: unilaki2_low
+  damakar1: damakar1_low
+  damakar2: damakar2_low
+  # Legacy/Typo Compatibility
+  damkar1: damakar1_low
+  damkar2: damakar2_low
+  # _sub suffix compatibility
+  labkesda1_sub: labkesda1_low
+  labkesda2_sub: labkesda2_low
+  sosial1_sub: sosial1_low
+  sosial2_sub: sosial2_low
+  asambu1_sub: asambu1_low
+  asambu2_sub: asambu2_low
+  unaaha1_sub: unaaha1_low
+  unaaha2_sub: unaaha2_low
+  pasar_asinua1_sub: pasar_asinua1_low
+  pasar_asinua2_sub: pasar_asinua2_low
+  asinua1_sub: asinua1_low
+  asinua2_sub: asinua2_low
+  inalahi1_sub: inalahi1_low
+  inalahi2_sub: inalahi2_low
+  uepai1_sub: uepai1_low
+  uepai2_sub: uepai2_low
+  unilaki1_sub: unilaki1_low
+  unilaki2_sub: unilaki2_low
+  damakar1_sub: damakar1_low
+  damakar2_sub: damakar2_low
+  damkar1_sub: damakar1_low
+  damkar2_sub: damakar2_low
+  # Labkesda (Menggunakan FFmpeg untuk stabilitas)
+  labkesda1_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-labkesda.ddns.net:6554/stream1#video=copy#audio=copy
+  labkesda1_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-labkesda.ddns.net:6554/stream2#video=copy#audio=copy
+  labkesda2_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-labkesda.ddns.net:6555/stream1#video=copy#audio=copy
+  labkesda2_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-labkesda.ddns.net:6555/stream2#video=copy#audio=copy
 
-  # Sosial / Dinsos
-  sosial1_high: rtsp://admin:2025-CCTVknw@cctv-dinsos.ddns.net:6559/stream1
-  sosial1_low: rtsp://admin:2025-CCTVknw@cctv-dinsos.ddns.net:6559/stream2
-  sosial2_high: rtsp://admin:2025-CCTVknw@cctv-dinsos.ddns.net:6560/stream1
-  sosial2_low: rtsp://admin:2025-CCTVknw@cctv-dinsos.ddns.net:6560/stream2
+  # Sosial / Dinsos (Menggunakan FFmpeg untuk stabilitas koneksi)
+  sosial1_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-dinsos.ddns.net:6559/stream1#video=copy#audio=copy
+  sosial1_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-dinsos.ddns.net:6559/stream2#video=copy#audio=copy
+  sosial2_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-dinsos.ddns.net:6560/stream1#video=copy#audio=copy
+  sosial2_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-dinsos.ddns.net:6560/stream2#video=copy#audio=copy
 
-  # Asambu
-  asambu1_high: rtsp://admin:2025-CCTVknw@cctv-asambu.ddns.net:6559/stream1
-  asambu1_low: rtsp://admin:2025-CCTVknw@cctv-asambu.ddns.net:6559/stream2
-  asambu2_high: rtsp://admin:2025-CCTVknw@cctv-asambu.ddns.net:6560/stream1
-  asambu2_low: rtsp://admin:2025-CCTVknw@cctv-asambu.ddns.net:6560/stream2
+  # Asambu (Menggunakan FFmpeg untuk stabilitas)
+  asambu1_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-asambu.ddns.net:6559/stream1#video=copy#audio=copy
+  asambu1_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-asambu.ddns.net:6559/stream2#video=copy#audio=copy
+  asambu2_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-asambu.ddns.net:6560/stream1#video=copy#audio=copy
+  asambu2_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-asambu.ddns.net:6560/stream2#video=copy#audio=copy
 
-  # Unaaha
-  unaaha1_high: rtsp://admin:2025-CCTVknw@cctv-kelunaaha.ddns.net:6559/stream1
-  unaaha1_low: rtsp://admin:2025-CCTVknw@cctv-kelunaaha.ddns.net:6559/stream2
-  unaaha2_high: rtsp://admin:2025-CCTVknw@cctv-kelunaaha.ddns.net:6560/stream1
-  unaaha2_low: rtsp://admin:2025-CCTVknw@cctv-kelunaaha.ddns.net:6560/stream2
+  # Unaaha (Menggunakan FFmpeg untuk stabilitas)
+  unaaha1_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-kelunaaha.ddns.net:6559/stream1#video=copy#audio=copy
+  unaaha1_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-kelunaaha.ddns.net:6559/stream2#video=copy#audio=copy
+  unaaha2_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-kelunaaha.ddns.net:6560/stream1#video=copy#audio=copy
+  unaaha2_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-kelunaaha.ddns.net:6560/stream2#video=copy#audio=copy
 
-  # Pasar Asinua
-  pasar_asinua1_high: rtsp://admin:2025-CCTVknw@cctv-pasarasinua.ddns.net:6552/stream1
-  pasar_asinua1_low: rtsp://admin:2025-CCTVknw@cctv-pasarasinua.ddns.net:6552/stream2
-  pasar_asinua2_high: rtsp://admin:2025-CCTVknw@cctv-pasarasinua.ddns.net:6551/stream1
-  pasar_asinua2_low: rtsp://admin:2025-CCTVknw@cctv-pasarasinua.ddns.net:6551/stream2
+  # Pasar Asinua (Menggunakan FFmpeg untuk stabilitas)
+  pasar_asinua1_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-pasarasinua.ddns.net:6552/stream1#video=copy#audio=copy
+  pasar_asinua1_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-pasarasinua.ddns.net:6552/stream2#video=copy#audio=copy
+  pasar_asinua2_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-pasarasinua.ddns.net:6551/stream1#video=copy#audio=copy
+  pasar_asinua2_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-pasarasinua.ddns.net:6551/stream2#video=copy#audio=copy
 
-  # Asinua (Umum)
-  asinua1_high: rtsp://admin:2025-CCTVknw@cctv-asinua.ddns.net:6555/stream1
-  asinua1_low: rtsp://admin:2025-CCTVknw@cctv-asinua.ddns.net:6555/stream2
-  asinua2_high: rtsp://admin:2025-CCTVknw@cctv-asinua.ddns.net:6551/stream1
-  asinua2_low: rtsp://admin:2025-CCTVknw@cctv-asinua.ddns.net:6551/stream2
+  # Asinua (Umum) (Menggunakan FFmpeg untuk stabilitas)
+  asinua1_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-asinua.ddns.net:6555/stream1#video=copy#audio=copy
+  asinua1_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-asinua.ddns.net:6555/stream2#video=copy#audio=copy
+  asinua2_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-asinua.ddns.net:6551/stream1#video=copy#audio=copy
+  asinua2_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-asinua.ddns.net:6551/stream2#video=copy#audio=copy
 
-  # Inalahi
-  inalahi1_high: rtsp://admin:2025-CCTVknw@cctv-inalahi.ddns.net:6550/stream1
-  inalahi1_low: rtsp://admin:2025-CCTVknw@cctv-inalahi.ddns.net:6550/stream2
-  inalahi2_high: rtsp://admin:2025-CCTVknw@cctv-inalahi.ddns.net:6551/stream1
-  inalahi2_low: rtsp://admin:2025-CCTVknw@cctv-inalahi.ddns.net:6551/stream2
+  # Inalahi (Menggunakan FFmpeg untuk stabilitas)
+  inalahi1_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-inalahi.ddns.net:6550/stream1#video=copy#audio=copy
+  inalahi1_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-inalahi.ddns.net:6550/stream2#video=copy#audio=copy
+  inalahi2_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-inalahi.ddns.net:6551/stream1#video=copy#audio=copy
+  inalahi2_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-inalahi.ddns.net:6551/stream2#video=copy#audio=copy
 
-  # Uepai
-  uepai1_high: rtsp://admin:2025-CCTVknw@cctv-uepai2.ddns.net:6550/stream1
-  uepai1_low: rtsp://admin:2025-CCTVknw@cctv-uepai2.ddns.net:6550/stream2
-  uepai2_high: rtsp://admin:2025-CCTVknw@cctv-uepai2.ddns.net:6551/stream1
-  uepai2_low: rtsp://admin:2025-CCTVknw@cctv-uepai2.ddns.net:6551/stream2
+  # Uepai (Menggunakan FFmpeg untuk stabilitas)
+  uepai1_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-uepai2.ddns.net:6550/stream1#video=copy#audio=copy
+  uepai1_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-uepai2.ddns.net:6550/stream2#video=copy#audio=copy
+  uepai2_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-uepai2.ddns.net:6551/stream1#video=copy#audio=copy
+  uepai2_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-uepai2.ddns.net:6551/stream2#video=copy#audio=copy
 
-  # Unilaki
-  unilaki1_high: rtsp://admin:2025-CCTVknw@cctv-unilaki.ddns.net:6655/stream1
-  unilaki1_low: rtsp://admin:2025-CCTVknw@cctv-unilaki.ddns.net:6655/stream2
-  unilaki2_high: rtsp://admin:2025-CCTVknw@cctv-unilaki.ddns.net:6656/stream1
-  unilaki2_low: rtsp://admin:2025-CCTVknw@cctv-unilaki.ddns.net:6656/stream2
+  # Unilaki (Menggunakan FFmpeg untuk stabilitas)
+  unilaki1_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-unilaki.ddns.net:6655/stream1#video=copy#audio=copy
+  unilaki1_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-unilaki.ddns.net:6655/stream2#video=copy#audio=copy
+  unilaki2_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-unilaki.ddns.net:6656/stream1#video=copy#audio=copy
+  unilaki2_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-unilaki.ddns.net:6656/stream2#video=copy#audio=copy
 
-  # Damakar
-  damakar1_high: rtsp://admin:2025-CCTVknw@cctv-damkar.ddns.net:6550/stream1
-  damakar1_low: rtsp://admin:2025-CCTVknw@cctv-damkar.ddns.net:6550/stream2
-  damakar2_high: rtsp://admin:2025-CCTVknw@cctv-damkar.ddns.net:6551/stream1
-  damakar2_low: rtsp://admin:2025-CCTVknw@cctv-damkar.ddns.net:6551/stream2
+  # Damakar (Menggunakan FFmpeg untuk stabilitas)
+  damakar1_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-damkar.ddns.net:6550/stream1#video=copy#audio=copy
+  damakar1_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-damkar.ddns.net:6550/stream2#video=copy#audio=copy
+  damakar2_high: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-damkar.ddns.net:6551/stream1#video=copy#audio=copy
+  damakar2_low: ffmpeg:rtsp://admin:2025-CCTVknw@cctv-damkar.ddns.net:6551/stream2#video=copy#audio=copy
 
   # 3. BUFFERED STREAMS (Semi-Live with Cache & Delay) - Low Quality
   labkesda1_buffered: http://127.0.0.1:1984/api/stream.m3u8?src=labkesda1_low

@@ -1,6 +1,14 @@
-11:01:51.768 INF go2rtc platform=darwin/arm64 revision= version=1.9.14+dev.
-11:01:51.768 INF config path=/Volumes/Untitled/code/CCTVNEW/go2rtcFRESH/go2rtc.yaml
-11:01:51.770 INF [api] listen addr=:1984
-11:01:51.770 INF [rtsp] listen addr=:8554
-11:01:51.771 INF [webrtc] listen tcp addr=[::]:8555
-11:01:51.771 INF [webrtc] listen udp addr=172.20.10.4:8555
+19:42:17.301 INF go2rtc platform=darwin/arm64 revision= version=1.9.14+dev.
+19:42:17.302 INF config path="/Volumes/Untitled/code/CCTVNEW/go2rtcFRESH/go2rtc 2.yaml"
+19:42:17.302 INF [api] listen addr=:1984
+19:42:17.303 INF [rtsp] listen addr=:8554
+19:42:17.303 INF [webrtc] listen tcp addr=[::]:8555
+19:42:17.303 INF [webrtc] listen udp addr=172.20.10.4:8555
+19:52:59.420 ERR internal/hls/ws.go:28 > error="streams: exec/rtsp\n[in#0 @ 0x13ce31290] Error opening input: Server returned 400 Bad Request\nError opening input file rtsp://***@cctv-pasarasinua.ddns.net:6552/stream2.\nError opening input files: Server returned 400 Bad Request\n"
+19:53:03.619 ERR internal/hls/ws.go:28 > error="streams: exec/rtsp\n[tcp @ 0x13d8057d0] Connection to tcp://cctv-dinsos.ddns.net:6559?timeout=5000000 failed: Operation timed out\n[in#0 @ 0x13d804380] Error opening input: Operation timed out\nError opening input file rtsp://***@cctv-dinsos.ddns.net:6559/stream2.\nError opening input files: Operation timed out\n"
+19:58:45.029 ERR internal/hls/ws.go:28 > error="streams: exec/rtsp\n[in#0 @ 0x1427042b0] Error opening input: Server returned 400 Bad Request\nError opening input file rtsp://***@cctv-pasarasinua.ddns.net:6552/stream2.\nError opening input files: Server returned 400 Bad Request\n"
+19:58:49.253 ERR internal/hls/ws.go:28 > error="streams: exec/rtsp\n[tcp @ 0x132a057e0] Connection to tcp://cctv-dinsos.ddns.net:6559?timeout=5000000 failed: Operation timed out\n[in#0 @ 0x131f14030] Error opening input: Operation timed out\nError opening input file rtsp://***@cctv-dinsos.ddns.net:6559/stream2.\nError opening input files: Operation timed out\n"
+06:40:47.148 WRN internal/streams/producer.go:170 > error=EOF url=ffmpeg:rtsp://***@cctv-asinua.ddns.net:6555/stream2#video=copy#audio=copy
+06:40:48.611 WRN internal/streams/producer.go:170 > error=EOF url=ffmpeg:rtsp://***@cctv-labkesda.ddns.net:6554/stream2#video=copy#audio=copy
+06:40:50.882 WRN internal/streams/producer.go:170 > error=EOF url=ffmpeg:rtsp://***@cctv-uepai2.ddns.net:6550/stream2#video=copy#audio=copy
+06:40:51.623 WRN internal/streams/producer.go:170 > error=EOF url=ffmpeg:rtsp://***@cctv-inalahi.ddns.net:6550/stream2#video=copy#audio=copy
